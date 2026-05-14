@@ -9,7 +9,7 @@
   left: 16px;
   z-index: 200;
   cursor: pointer;
-  animation: crab-float 3s ease-in-out infinite, crab-appear 0.5s ease both;
+  animation: crab-appear 0.5s ease both, crab-walk 18s linear infinite;
   /* Pixel size: each "px" below is 4px */
   width: 4px;
   height: 4px;
@@ -22,11 +22,11 @@
 }
 
 .pixel-crab:hover .crab-claw-left {
-  animation: claw-wiggle 0.3s ease-in-out infinite;
+  animation: claw-wiggle 0.15s ease-in-out infinite;
 }
 
 .pixel-crab:hover .crab-claw-right {
-  animation: claw-wiggle-right 0.3s ease-in-out infinite;
+  animation: claw-wiggle-right 0.15s ease-in-out infinite;
 }
 
 /* Crab body — warm amber/coral color */
@@ -85,8 +85,8 @@
     -12px 8px 0 var(--accent-amber),
     -8px 12px 0 var(--accent-amber),
     -12px 12px 0 #e8a070;
-  animation: claw-wiggle 2.5s ease-in-out infinite;
-  animation-delay: 0.5s;
+  animation: claw-wiggle 0.25s ease-in-out infinite;
+  animation-delay: 0s;
 }
 
 .crab-claw-right {
@@ -98,8 +98,8 @@
     32px 8px 0 var(--accent-amber),
     28px 12px 0 var(--accent-amber),
     32px 12px 0 #e8a070;
-  animation: claw-wiggle-right 2.5s ease-in-out infinite;
-  animation-delay: 0.5s;
+  animation: claw-wiggle-right 0.25s ease-in-out infinite;
+  animation-delay: 0s;
 }
 
 /* Eyes */
@@ -125,9 +125,12 @@
   animation-delay: 0.05s;
 }
 
-@keyframes crab-float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-4px); }
+@keyframes crab-walk {
+  0%   { transform: translateX(0) translateY(0) scaleX(1); }
+  25%  { transform: translateX(250px) translateY(-3px) scaleX(1); }
+  50%  { transform: translateX(250px) translateY(0) scaleX(-1); }
+  75%  { transform: translateX(0) translateY(-3px) scaleX(-1); }
+  100% { transform: translateX(0) translateY(0) scaleX(1); }
 }
 
 @keyframes claw-wiggle {
@@ -222,6 +225,25 @@ header {
   font-weight: 400;
   letter-spacing: 0.5px;
   text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.date-gregorian {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.date-weekday {
+  color: var(--accent-amber);
+  font-weight: 600;
+}
+
+.date-lunar {
+  color: var(--muted);
+  font-size: 12px;
 }
 
 /* ---- Tab cleanup banner ---- */
