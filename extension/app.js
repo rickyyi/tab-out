@@ -1853,6 +1853,66 @@ document.addEventListener('input', (e) => {
 
 
 /* ----------------------------------------------------------------
+   CRAB CLICK INTERACTION
+   ---------------------------------------------------------------- */
+
+const CRAB_PHRASES = [
+  'Tab Out! 🦀',
+  '标签清清清~',
+  'Ctrl+W 快捷关标签',
+  '点我干嘛~',
+  '休息一下 ☕',
+  '今天也加油鸭',
+  '嗯？',
+  '爬呀爬~',
+  '别关我...',
+  '给我点赞！',
+  '快去摸鱼 🐟',
+  '刷新试试',
+  '看什么看~',
+  '我很可爱',
+  '摸我一下',
+];
+
+function triggerCrabBubble() {
+  const crabEl = document.getElementById('pixelCrab');
+  const inner = crabEl ? crabEl.querySelector('.crab-inner') : null;
+  const bubble = document.getElementById('crabBubble');
+  if (!inner || !bubble) return;
+
+  const phrase = CRAB_PHRASES[Math.floor(Math.random() * CRAB_PHRASES.length)];
+  bubble.textContent = phrase;
+  bubble.classList.add('visible');
+
+  inner.classList.remove('crab-bounce');
+  void inner.offsetWidth;
+  inner.classList.add('crab-bounce');
+
+  setTimeout(() => {
+    bubble.classList.remove('visible');
+  }, 2500);
+}
+
+const crabEl = document.getElementById('pixelCrab');
+if (crabEl) {
+  // Manual click
+  crabEl.addEventListener('click', () => {
+    triggerCrabBubble();
+  });
+
+  // Auto bubble every 15–30 seconds
+  function scheduleAutoBubble() {
+    const delay = 15000 + Math.random() * 15000;
+    setTimeout(() => {
+      triggerCrabBubble();
+      scheduleAutoBubble();
+    }, delay);
+  }
+  scheduleAutoBubble();
+}
+
+
+/* ----------------------------------------------------------------
    INITIALIZE
    ---------------------------------------------------------------- */
 renderDashboard();
