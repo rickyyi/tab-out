@@ -17,6 +17,65 @@
 
 
 /* ----------------------------------------------------------------
+   RECENTLY CLOSED — chrome.storage.local
+
+   Stores the last N closed tabs so users can reopen them.
+   Data shape stored under the "closedHistory" key:
+   [
+     {
+       id: "1712345678901",
+       url: "https://example.com",
+       title: "Example Page",
+       closedAt: "2026-04-04T10:00:00.000Z",
+     },
+     ...
+   ]
+   ---------------------------------------------------------------- */
+
+const CLOSED_HISTORY_KEY = 'closedHistory';
+const MAX_CLOSED_HISTORY = 50;
+
+async function addToClosedHistory(tab) {
+  if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) return;
+  const { [CLOSED_HISTORY_KEY]: history = [] } = await chrome.storage.local.get(CLOSED_HISTORY_KEY);
+  history.unshift({
+    id: Date.now().toString(),
+    url: tab.url,
+    title: tab.title || tab.url,
+    closedAt: new Date().toISOString(),
+  });
+  // Keep only the last MAX_CLOSED_HISTORY entries
+  if (history.length > MAX_CLOSED_HISTORY) history.length = MAX_CLOSED_HISTORY;
+  await chrome.storage.local.set({ [CLOSED_HISTORY_KEY]: history });
+}
+
+async function getClosedHistory() {
+  const { [CLOSED_HISTORY_KEY]: history = [] } = await chrome.storage.local.get(CLOSED_HISTORY_KEY);
+  return history;
+}
+
+async function removeFromClosedHistory(id) {
+  const { [CLOSED_HISTORY_KEY]: history = [] } = await chrome.storage.local.get(CLOSED_HISTORY_KEY);
+  const filtered = history.filter(h => h.id !== id);
+  await chrome.storage.local.set({ [CLOSED_HISTORY_KEY]: filtered });
+}
+
+async function clearClosedHistory() {
+  await chrome.storage.local.set({ [CLOSED_HISTORY_KEY]: [] });
+}
+
+async function reopenClosedTab(id) {
+  const history = await getClosedHistory();
+  const item = history.find(h => h.id === id);
+  if (!item) return;
+  await chrome.tabs.create({ url: item.url, active: false });
+  await removeFromClosedHistory(id);
+  showToast('Tab reopened');
+  renderRecentlyClosedColumn();
+}
+
+
+/* ----------------------------------------------------------------
    CHROME TABS — Direct API Access
 
    Since this page IS the extension's new tab page, it has full
@@ -1005,6 +1064,120 @@ function renderArchiveItem(item) {
 
 
 /* ----------------------------------------------------------------
+   RECENTLY CLOSED — Render Sidebar Section
+   ---------------------------------------------------------------- */
+
+async function renderRecentlyClosedColumn() {
+  const column = document.getElementById('recentlyClosedColumn');
+  const list   = document.getElementById('recentlyClosedList');
+  const empty  = document.getElementById('recentlyClosedEmpty');
+  const countEl = document.getElementById('recentlyClosedCount');
+  const footer = document.getElementById('recentlyClosedFooter');
+  if (!column) return;
+
+  try {
+    const history = await getClosedHistory();
+
+    if (history.length === 0) {
+      column.style.display = 'none';
+      return;
+    }
+
+    column.style.display = 'block';
+    countEl.textContent = `${history.length}`;
+    empty.style.display = 'none';
+    footer.style.display = 'flex';
+
+    list.innerHTML = history.map(item => {
+      let domain = '';
+      try { domain = new URL(item.url).hostname.replace(/^www\./, ''); } catch {}
+      const faviconUrl = `https://www.google.com/s2/favicons?domain=${domain}&sz=16`;
+      const ago = timeAgo(item.closedAt);
+      const safeUrl = item.url.replace(/"/g, '&quot;');
+      const safeTitle = (item.title || '').replace(/"/g, '&quot;');
+      return `
+        <div class="closed-item" data-closed-id="${item.id}">
+          <img class="closed-item-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">
+          <div class="closed-item-info">
+            <a href="${safeUrl}" target="_blank" rel="noopener" class="closed-item-title" title="${safeTitle}">${item.title || item.url}</a>
+            <div class="closed-item-time">${domain} · ${ago}</div>
+          </div>
+          <div class="closed-item-actions">
+            <button class="closed-action" data-action="reopen-closed-tab" data-closed-id="${item.id}" title="Reopen">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" /></svg>
+            </button>
+            <button class="closed-action dismiss" data-action="dismiss-closed-tab" data-closed-id="${item.id}" title="Remove from history">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        </div>`;
+    }).join('');
+  } catch (err) {
+    console.warn('[tab-out] Could not load closed history:', err);
+    column.style.display = 'none';
+  }
+}
+
+
+/* ----------------------------------------------------------------
+   TAB SEARCH
+   ---------------------------------------------------------------- */
+
+let currentSearchQuery = '';
+
+function filterTabsBySearch(query) {
+  const q = query.trim().toLowerCase();
+  const missionsEl = document.getElementById('openTabsMissions');
+  if (!missionsEl) return;
+
+  const cards = missionsEl.querySelectorAll('.mission-card');
+  let visibleCount = 0;
+
+  cards.forEach(card => {
+    const chips = card.querySelectorAll('.page-chip[data-action="focus-tab"]');
+    let hasVisibleChip = false;
+
+    chips.forEach(chip => {
+      const title = chip.querySelector('.chip-text');
+      const titleText = (title ? title.textContent : '').toLowerCase();
+      const chipUrl = (chip.dataset.tabUrl || '').toLowerCase();
+      const matches = !q || titleText.includes(q) || chipUrl.includes(q);
+      chip.style.display = matches ? '' : 'none';
+      if (matches) hasVisibleChip = true;
+    });
+
+    // Also check the domain/label
+    const missionName = card.querySelector('.mission-name');
+    const missionText = (missionName ? missionName.textContent : '').toLowerCase();
+    const domainMatches = !q || missionText.includes(q);
+
+    if (hasVisibleChip && domainMatches) {
+      card.classList.remove('search-hidden');
+      visibleCount++;
+    } else {
+      card.classList.add('search-hidden');
+    }
+  });
+
+  // Show no results message
+  let noResults = missionsEl.querySelector('.search-no-results');
+  if (visibleCount === 0 && q.length > 0) {
+    if (!noResults) {
+      noResults = document.createElement('div');
+      noResults.className = 'search-no-results';
+      noResults.innerHTML = `<div class="search-no-results-title">No tabs found</div><div style="font-size:13px">Try a different search term</div>`;
+      missionsEl.appendChild(noResults);
+    }
+    noResults.style.display = '';
+  } else if (noResults) {
+    noResults.style.display = 'none';
+  }
+
+  return visibleCount;
+}
+
+
+/* ----------------------------------------------------------------
    MAIN DASHBOARD RENDERER
    ---------------------------------------------------------------- */
 
@@ -1166,10 +1339,15 @@ async function renderStaticDashboard() {
 
   // --- Render "Saved for Later" column ---
   await renderDeferredColumn();
+
+  // --- Render "Recently Closed" column ---
+  await renderRecentlyClosedColumn();
 }
 
 async function renderDashboard() {
   await renderStaticDashboard();
+  // Re-apply search filter if user has typed something
+  if (currentSearchQuery) filterTabsBySearch(currentSearchQuery);
 }
 
 
@@ -1227,11 +1405,15 @@ document.addEventListener('click', async (e) => {
     const tabUrl = actionEl.dataset.tabUrl;
     if (!tabUrl) return;
 
-    // Close the tab in Chrome directly
+    // Record in closed history before closing
     const allTabs = await chrome.tabs.query({});
     const match   = allTabs.find(t => t.url === tabUrl);
+    if (match) await addToClosedHistory({ url: match.url, title: match.title });
+
+    // Close the tab in Chrome directly
     if (match) await chrome.tabs.remove(match.id);
     await fetchOpenTabs();
+    await renderRecentlyClosedColumn();
 
     playCloseSound();
 
@@ -1261,6 +1443,7 @@ document.addEventListener('click', async (e) => {
     if (statTabs) statTabs.textContent = openTabs.length;
 
     showToast('Tab closed');
+    if (currentSearchQuery) setTimeout(() => filterTabsBySearch(currentSearchQuery), 250);
     return;
   }
 
@@ -1348,6 +1531,9 @@ document.addEventListener('click', async (e) => {
     });
     if (!group) return;
 
+    // Record all tabs in this group before closing
+    for (const t of group.tabs) await addToClosedHistory(t);
+
     const urls      = group.tabs.map(t => t.url);
     // Landing pages and custom groups (whose domain key isn't a real hostname)
     // must use exact URL matching to avoid closing unrelated tabs
@@ -1370,6 +1556,7 @@ document.addEventListener('click', async (e) => {
 
     const groupLabel = group.domain === '__landing-pages__' ? 'Homepages' : (group.label || friendlyDomain(group.domain));
     showToast(`Closed ${urls.length} tab${urls.length !== 1 ? 's' : ''} from ${groupLabel}`);
+    await renderRecentlyClosedColumn();
 
     const statTabs = document.getElementById('statTabs');
     if (statTabs) statTabs.textContent = openTabs.length;
@@ -1414,9 +1601,11 @@ document.addEventListener('click', async (e) => {
 
   // ---- Close ALL open tabs ----
   if (action === 'close-all-open-tabs') {
-    const allUrls = openTabs
-      .filter(t => t.url && !t.url.startsWith('chrome') && !t.url.startsWith('about:'))
-      .map(t => t.url);
+    const tabsToRecord = openTabs
+      .filter(t => t.url && !t.url.startsWith('chrome') && !t.url.startsWith('about:'));
+    for (const t of tabsToRecord) await addToClosedHistory(t);
+
+    const allUrls = tabsToRecord.map(t => t.url);
     await closeTabsByUrls(allUrls);
     playCloseSound();
 
@@ -1429,6 +1618,37 @@ document.addEventListener('click', async (e) => {
     });
 
     showToast('All tabs closed. Fresh start.');
+    return;
+  }
+
+  // ---- Reopen a recently closed tab ----
+  if (action === 'reopen-closed-tab') {
+    const id = actionEl.dataset.closedId;
+    if (id) await reopenClosedTab(id);
+    return;
+  }
+
+  // ---- Remove a single item from closed history ----
+  if (action === 'dismiss-closed-tab') {
+    const id = actionEl.dataset.closedId;
+    if (!id) return;
+    await removeFromClosedHistory(id);
+    renderRecentlyClosedColumn();
+    return;
+  }
+
+  // ---- Clear entire closed history ----
+  if (action === 'clear-closed-history') {
+    await clearClosedHistory();
+    renderRecentlyClosedColumn();
+    showToast('Closed history cleared');
+    return;
+  }
+
+  // ---- Clear search ----
+  if (action === 'clear-search') {
+    const input = document.getElementById('tabSearchInput');
+    if (input) { input.value = ''; input.dispatchEvent(new Event('input')); }
     return;
   }
 });
@@ -1473,6 +1693,22 @@ document.addEventListener('input', async (e) => {
   } catch (err) {
     console.warn('[tab-out] Archive search failed:', err);
   }
+});
+
+// ---- Tab search — filter open tabs as user types ----
+document.addEventListener('input', (e) => {
+  if (e.target.id !== 'tabSearchInput') return;
+
+  const q = e.target.value;
+  const clearBtn = document.getElementById('searchClear');
+
+  // Show/hide clear button
+  if (clearBtn) {
+    clearBtn.style.display = q.length > 0 ? 'flex' : 'none';
+  }
+
+  currentSearchQuery = q;
+  filterTabsBySearch(q);
 });
 
 

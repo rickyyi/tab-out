@@ -47,6 +47,21 @@
   </div>
 
   <!-- ================================================================
+       SEARCH — filters open tabs in real time
+       ================================================================ -->
+  <div class="search-bar" id="searchBar">
+    <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+    </svg>
+    <input type="text" id="tabSearchInput" placeholder="Search open tabs..." autocomplete="off">
+    <button class="search-clear" id="searchClear" style="display:none" data-action="clear-search">
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
+      </svg>
+    </button>
+  </div>
+
+  <!-- ================================================================
        MAIN CONTENT AREA — two-column layout
        Left: open tabs (domain/mission cards)
        Right: saved for later checklist
@@ -91,6 +106,22 @@
           <input type="text" class="archive-search" id="archiveSearch" placeholder="Search archived tabs...">
           <div class="archive-list" id="archiveList"></div>
         </div>
+      </div>
+    </div>
+
+    <!-- BOTTOM RIGHT: Recently Closed — collapsed by default -->
+    <div class="recently-closed-column" id="recentlyClosedColumn" style="display:none">
+      <div class="section-header">
+        <h2>Recently closed</h2>
+        <div class="section-line"></div>
+        <div class="section-count" id="recentlyClosedCount"></div>
+      </div>
+      <div class="recently-closed-list" id="recentlyClosedList"></div>
+      <div class="recently-closed-empty" id="recentlyClosedEmpty" style="display:none">
+        No recently closed tabs.
+      </div>
+      <div class="recently-closed-footer" id="recentlyClosedFooter" style="display:none">
+        <button class="action-btn" data-action="clear-closed-history">Clear all</button>
       </div>
     </div>
 
