@@ -1913,6 +1913,124 @@ if (crabEl) {
 
 
 /* ----------------------------------------------------------------
+   FLOATING CALENDAR — click date to toggle
+   ---------------------------------------------------------------- */
+
+function renderCalendar(year, month) {
+  const grid = document.getElementById('calGrid');
+  const title = document.getElementById('calTitle');
+  const footer = document.getElementById('calFooter');
+  if (!grid || !title) return;
+
+  const headerRight = document.querySelector('.header-left');
+  const now = new Date();
+  const today = { y: now.getFullYear(), m: now.getMonth() + 1, d: now.getDate() };
+
+  // Set title
+  title.textContent = `${year}年${month}月`;
+
+  // First day of month (0=Sun, 1=Mon...), adjust so Mon=0
+  const firstDow = new Date(year, month - 1, 1).getDay();
+  const startCol = (firstDow + 6) % 7;  // Mon=0..Sun=6
+
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const daysPrev = new Date(year, month - 1, 0).getDate();
+
+  const rows = [];
+  for (let i = 0; i < 6; i++) {
+    for (let j = 0; j < 7; j++) {
+      const cellIdx = i * 7 + j;
+      const dayOffset = cellIdx - startCol;
+      let day = dayOffset;
+      let cellMonth = month;
+      let cellYear = year;
+      let cls = '';
+
+      if (dayOffset < 0) {
+        day = daysPrev + dayOffset + 1;
+        cellMonth = month - 1;
+        if (cellMonth < 1) { cellMonth = 12; cellYear--; }
+        cls = 'other-month';
+      } else if (dayOffset >= daysInMonth) {
+        day = dayOffset - daysInMonth + 1;
+        cellMonth = month + 1;
+        if (cellMonth > 12) { cellMonth = 1; cellYear++; }
+        cls = 'other-month';
+      } else {
+        day = dayOffset + 1;
+      }
+
+      if (day === today.d && cellMonth === today.m && cellYear === today.y) cls += ' today';
+
+      // Lunar date
+      const lunar = solarToLunar(cellYear, cellMonth, day);
+      const lunarDay = lunar.day === 1 ? lunarDateToString(lunar.year, lunar.month, lunar.day, lunar.isLeap)
+                        : (lunar.day <= 10 ? `初${'一二三四五六七八九十'[lunar.day-1]||''}`
+                           : lunar.day < 20 ? `十${'一二三四五六七八九'[lunar.day-11]||''}`
+                           : lunar.day === 20 ? '二十'
+                           : lunar.day === 30 ? '三十'
+                           : lunar.day > 20 && lunar.day < 30 ? `廿${'一二三四五六七八九'[lunar.day-21]||''}`
+                           : lunar.day === 10 ? '初十' : '');
+
+      rows.push(`<div class="cal-cell${cls}">
+        <div class="cal-day">${day}</div>
+        <div class="cal-lunar">${lunarDay}</div>
+      </div>`);
+    }
+  }
+
+  grid.innerHTML = rows.join('');
+
+  // Footer shows today's lunar date
+  const tl = solarToLunar(today.y, today.m, today.d);
+  footer.textContent = `今天：${HEAVENLY_STEMS[(tl.year-4)%10]}${EARTHLY_BRANCHES[(tl.year-4)%12]}年 ` +
+    lunarDateToString(tl.year, tl.month, tl.day, tl.isLeap);
+}
+
+// Calendar state
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth() + 1;
+
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('calendarPopup');
+  if (!popup) return;
+
+  // Toggle on date click
+  if (e.target.closest('#dateDisplay')) {
+    const isOpen = popup.style.display !== 'none';
+    popup.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+      const rect = document.getElementById('pixelCrab').getBoundingClientRect();
+      //popup.style.left = rect.left + 'px';
+      popup.style.left = '0px';
+      popup.style.top = (rect.bottom + 8) + 'px';
+      const now = new Date();
+      calYear = now.getFullYear();
+      calMonth = now.getMonth() + 1;
+      renderCalendar(calYear, calMonth);
+    }
+    e.stopPropagation();
+    return;
+  }
+
+  // Month navigation
+  if (e.target.closest('[data-cal]')) {
+    const dir = e.target.closest('[data-cal]').dataset.cal;
+    if (dir === 'prev') { calMonth--; if (calMonth < 1) { calMonth = 12; calYear--; } }
+    if (dir === 'next') { calMonth++; if (calMonth > 12) { calMonth = 1; calYear++; } }
+    renderCalendar(calYear, calMonth);
+    e.stopPropagation();
+    return;
+  }
+
+  // Close on click outside
+  if (!e.target.closest('.calendar-popup') && !e.target.closest('#dateDisplay')) {
+    popup.style.display = 'none';
+  }
+});
+
+
+/* ----------------------------------------------------------------
    INITIALIZE
    ---------------------------------------------------------------- */
 renderDashboard();

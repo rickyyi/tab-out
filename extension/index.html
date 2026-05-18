@@ -25,6 +25,20 @@
   </div>
 </div>
 
+<!-- Floating calendar popup -->
+<div class="calendar-popup" id="calendarPopup" style="display:none">
+  <div class="calendar-head">
+    <button class="cal-nav" data-cal="prev">&lsaquo;</button>
+    <div class="cal-title" id="calTitle"></div>
+    <button class="cal-nav" data-cal="next">&rsaquo;</button>
+  </div>
+  <div class="cal-weekdays">
+    <span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-footer" id="calFooter"></div>
+</div>
+
 <div class="container">
 
 
@@ -37,7 +51,7 @@
       <!-- "Good afternoon" — written by getGreeting() in app.js -->
       <h1 id="greeting"></h1>
       <!-- "Friday, April 4, 2026" — written by getDateDisplay() in app.js -->
-      <div class="date" id="dateDisplay"></div>
+      <div class="date" id="dateDisplay" style="cursor:pointer"></div>
     </div>
   </header>
 
