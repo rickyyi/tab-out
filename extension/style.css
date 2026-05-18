@@ -288,6 +288,22 @@ header {
   letter-spacing: -0.5px;
   color: var(--ink);
   margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.weather-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.weather-temp {
+  font-size: 14px;
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 400;
+  color: var(--muted);
+  letter-spacing: 0;
 }
 
 .header-left .date {
@@ -411,15 +427,6 @@ header {
   opacity: 0.55;
 }
 
-.cal-cell.other-month .cal-day {
-  color: var(--muted);
-  opacity: 0.35;
-}
-
-.cal-cell.other-month .cal-lunar {
-  opacity: 0.35;
-}
-
 .cal-cell.today {
   background: rgba(200,113,58,0.1);
   border-radius: 4px;
@@ -442,18 +449,32 @@ header {
   color: var(--accent-amber);
 }
 
-.cal-grid .cal-cell:nth-child(7n+6).other-month .cal-day,
-.cal-grid .cal-cell:nth-child(7n).other-month .cal-day {
-  opacity: 0.4;
-}
 
 .cal-footer {
-  text-align: center;
-  font-size: 10px;
-  color: var(--muted);
+  display: flex;
+  justify-content: center;
   margin-top: 8px;
-  padding-top: 6px;
+  padding-top: 8px;
   border-top: 1px solid var(--warm-gray);
+}
+
+.cal-today-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 500;
+  padding: 3px 12px;
+  border-radius: 4px;
+  border: 1px solid var(--warm-gray);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.cal-today-btn:hover {
+  color: var(--ink);
+  border-color: var(--ink);
+  border-color: var(--accent-amber);
 }
 
 /* ---- Tab cleanup banner ---- */

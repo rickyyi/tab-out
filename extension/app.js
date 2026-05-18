@@ -713,6 +713,52 @@ function renderDateDisplay() {
   `;
 }
 
+const WEATHER_ICONS = {
+  113: '☀️', 116: '⛅', 119: '☁️', 122: '☁️',
+  143: '🌫️', 248: '🌫️', 260: '🌫️',
+  176: '🌦️', 182: '🌧️', 185: '🌧️', 200: '⛈️',
+  227: '🌨️', 230: '🌨️',
+  263: '🌦️', 266: '🌦️', 281: '🌧️', 284: '🌧️',
+  293: '🌦️', 296: '🌦️', 299: '🌧️', 302: '🌧️', 305: '🌧️', 308: '🌧️',
+  311: '🌧️', 314: '🌧️', 317: '🌧️',
+  320: '🌨️', 323: '🌨️', 326: '🌨️', 329: '🌨️', 332: '🌨️', 335: '🌨️', 338: '🌨️',
+  350: '🌧️',
+  353: '🌦️', 356: '🌧️', 359: '🌧️',
+  362: '🌧️', 365: '🌧️', 368: '🌨️', 371: '🌨️',
+  374: '🌧️', 377: '🌧️', 386: '⛈️', 389: '⛈️', 392: '⛈️', 395: '🌨️',
+};
+
+async function updateWeather() {
+  const iconEl = document.getElementById('weatherIcon');
+  const tempEl = document.getElementById('weatherTemp');
+  if (!iconEl || !tempEl) return;
+
+  // Try multiple weather endpoints
+  const urls = [
+    'https://wttr.in/?format=j1',
+    'https://wttr.in/@auto?format=j1',
+  ];
+
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+      const data = await res.json();
+      const c = data.current_condition[0];
+      if (!c) continue;
+      const code = parseInt(c.weatherCode);
+      const loc = (data.nearest_area?.[0]?.areaName?.[0]?.value) || '';
+      iconEl.textContent = WEATHER_ICONS[code] || '🌤️';
+      tempEl.textContent = `${c.temp_C}°`;
+      iconEl.title = loc ? `${loc} · ${c.weatherDesc[0].value}` : c.weatherDesc[0].value;
+      return; // success
+    } catch {}
+  }
+
+  // All endpoints failed
+  iconEl.style.display = 'none';
+  tempEl.style.display = 'none';
+}
+
 
 /* ----------------------------------------------------------------
    DOMAIN & TITLE CLEANUP HELPERS
@@ -1336,8 +1382,11 @@ function filterTabsBySearch(query) {
 async function renderStaticDashboard() {
   // --- Header ---
   const greetingEl = document.getElementById('greeting');
-  if (greetingEl) greetingEl.textContent = getGreeting();
+  if (greetingEl) {
+    greetingEl.innerHTML = `${getGreeting()} <span class="weather-icon" id="weatherIcon"></span><span class="weather-temp" id="weatherTemp"></span>`;
+  }
   renderDateDisplay();
+  updateWeather();
 
   // --- Fetch tabs ---
   await fetchOpenTabs();
@@ -1791,6 +1840,43 @@ document.addEventListener('click', async (e) => {
     if (input) { input.value = ''; input.dispatchEvent(new Event('input')); }
     return;
   }
+
+  // ---- Calendar: toggle popup ----
+  if (action === 'cal-toggle') {
+    const popup = document.getElementById('calendarPopup');
+    if (!popup) return;
+    const isOpen = popup.style.display !== 'none';
+    popup.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) {
+      const rect = document.getElementById('pixelCrab').getBoundingClientRect();
+      popup.style.left = rect.left + 'px';
+      popup.style.top = (rect.bottom + 8) + 'px';
+      calYear = new Date().getFullYear();
+      calMonth = new Date().getMonth() + 1;
+      renderCalendar(calYear, calMonth);
+    }
+    return;
+  }
+
+  // ---- Calendar: nav month ----
+  if (action === 'cal-prev') {
+    calMonth--; if (calMonth < 1) { calMonth = 12; calYear--; }
+    renderCalendar(calYear, calMonth);
+    return;
+  }
+  if (action === 'cal-next') {
+    calMonth++; if (calMonth > 12) { calMonth = 1; calYear++; }
+    renderCalendar(calYear, calMonth);
+    return;
+  }
+
+  // ---- Calendar: jump to today ----
+  if (action === 'cal-today') {
+    calYear = new Date().getFullYear();
+    calMonth = new Date().getMonth() + 1;
+    renderCalendar(calYear, calMonth);
+    return;
+  }
 });
 
 // ---- Archive toggle — expand/collapse the archive section ----
@@ -1936,8 +2022,9 @@ function renderCalendar(year, month) {
   const daysInMonth = new Date(year, month, 0).getDate();
   const daysPrev = new Date(year, month - 1, 0).getDate();
 
+  const totalWeeks = Math.ceil((startCol + daysInMonth) / 7);
   const rows = [];
-  for (let i = 0; i < 6; i++) {
+  for (let i = 0; i < totalWeeks; i++) {
     for (let j = 0; j < 7; j++) {
       const cellIdx = i * 7 + j;
       const dayOffset = cellIdx - startCol;
@@ -1946,16 +2033,9 @@ function renderCalendar(year, month) {
       let cellYear = year;
       let cls = '';
 
-      if (dayOffset < 0) {
-        day = daysPrev + dayOffset + 1;
-        cellMonth = month - 1;
-        if (cellMonth < 1) { cellMonth = 12; cellYear--; }
-        cls = 'other-month';
-      } else if (dayOffset >= daysInMonth) {
-        day = dayOffset - daysInMonth + 1;
-        cellMonth = month + 1;
-        if (cellMonth > 12) { cellMonth = 1; cellYear++; }
-        cls = 'other-month';
+      if (dayOffset < 0 || dayOffset >= daysInMonth) {
+        rows.push('<div class="cal-cell"></div>');
+        continue;
       } else {
         day = dayOffset + 1;
       }
@@ -1991,40 +2071,11 @@ function renderCalendar(year, month) {
 let calYear = new Date().getFullYear();
 let calMonth = new Date().getMonth() + 1;
 
+// Close calendar when clicking outside
 document.addEventListener('click', (e) => {
   const popup = document.getElementById('calendarPopup');
-  if (!popup) return;
-
-  // Toggle on date click
-  if (e.target.closest('#dateDisplay')) {
-    const isOpen = popup.style.display !== 'none';
-    popup.style.display = isOpen ? 'none' : 'block';
-    if (!isOpen) {
-      const rect = document.getElementById('pixelCrab').getBoundingClientRect();
-      //popup.style.left = rect.left + 'px';
-      popup.style.left = '0px';
-      popup.style.top = (rect.bottom + 8) + 'px';
-      const now = new Date();
-      calYear = now.getFullYear();
-      calMonth = now.getMonth() + 1;
-      renderCalendar(calYear, calMonth);
-    }
-    e.stopPropagation();
-    return;
-  }
-
-  // Month navigation
-  if (e.target.closest('[data-cal]')) {
-    const dir = e.target.closest('[data-cal]').dataset.cal;
-    if (dir === 'prev') { calMonth--; if (calMonth < 1) { calMonth = 12; calYear--; } }
-    if (dir === 'next') { calMonth++; if (calMonth > 12) { calMonth = 1; calYear++; } }
-    renderCalendar(calYear, calMonth);
-    e.stopPropagation();
-    return;
-  }
-
-  // Close on click outside
-  if (!e.target.closest('.calendar-popup') && !e.target.closest('#dateDisplay')) {
+  if (!popup || popup.style.display === 'none') return;
+  if (!e.target.closest('.calendar-popup') && !e.target.closest('[data-action="cal-toggle"]')) {
     popup.style.display = 'none';
   }
 });
