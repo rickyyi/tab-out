@@ -713,20 +713,51 @@ function renderDateDisplay() {
   `;
 }
 
-const WEATHER_ICONS = {
-  113: '☀️', 116: '⛅', 119: '☁️', 122: '☁️',
-  143: '🌫️', 248: '🌫️', 260: '🌫️',
-  176: '🌦️', 182: '🌧️', 185: '🌧️', 200: '⛈️',
-  227: '🌨️', 230: '🌨️',
-  263: '🌦️', 266: '🌦️', 281: '🌧️', 284: '🌧️',
-  293: '🌦️', 296: '🌦️', 299: '🌧️', 302: '🌧️', 305: '🌧️', 308: '🌧️',
-  311: '🌧️', 314: '🌧️', 317: '🌧️',
-  320: '🌨️', 323: '🌨️', 326: '🌨️', 329: '🌨️', 332: '🌨️', 335: '🌨️', 338: '🌨️',
-  350: '🌧️',
-  353: '🌦️', 356: '🌧️', 359: '🌧️',
-  362: '🌧️', 365: '🌧️', 368: '🌨️', 371: '🌨️',
-  374: '🌧️', 377: '🌧️', 386: '⛈️', 389: '⛈️', 392: '⛈️', 395: '🌨️',
+const WEATHER_TYPES = {
+  sunny:     [113],
+  cloudy:    [116, 119, 122],
+  foggy:     [143, 248, 260],
+  rainy:     [176, 182, 185, 263, 266, 281, 284, 293, 296, 299, 302, 305, 308, 311, 314, 317, 350, 353, 356, 359, 362, 365, 374, 377],
+  snowy:     [179, 227, 230, 320, 323, 326, 329, 332, 335, 338, 368, 371, 395],
+  thundery:  [200, 386, 389, 392],
 };
+
+function weatherCodeToType(code) {
+  for (const [type, codes] of Object.entries(WEATHER_TYPES)) {
+    if (codes.includes(code)) return type;
+  }
+  return 'cloudy';
+}
+
+function renderWeatherIcon(type) {
+  const el = document.getElementById('weatherIcon');
+  if (!el) return;
+  // Build CSS-animated weather icon
+  let inner = '';
+  if (type === 'sunny') {
+    inner = `<div class="wi-sun"><div class="wi-sun-ray"></div></div>`;
+  } else if (type === 'cloudy') {
+    inner = `<div class="wi-cloud"></div>`;
+  } else if (type === 'foggy') {
+    inner = `<div class="wi-fog"><div class="wi-fog-line"></div><div class="wi-fog-line"></div><div class="wi-fog-line"></div></div>`;
+  } else if (type === 'rainy') {
+    inner = `<div class="wi-rain">
+      <div class="wi-cloud"></div>
+      <div class="wi-drop"></div><div class="wi-drop"></div><div class="wi-drop"></div>
+    </div>`;
+  } else if (type === 'snowy') {
+    inner = `<div class="wi-snow">
+      <div class="wi-cloud"></div>
+      <div class="wi-flake"></div><div class="wi-flake"></div><div class="wi-flake"></div>
+    </div>`;
+  } else if (type === 'thundery') {
+    inner = `<div class="wi-thunder">
+      <div class="wi-cloud"></div>
+      <div class="wi-bolt"></div>
+    </div>`;
+  }
+  el.innerHTML = inner;
+}
 
 async function updateWeather() {
   const iconEl = document.getElementById('weatherIcon');
@@ -735,8 +766,8 @@ async function updateWeather() {
 
   // Try multiple weather endpoints
   const urls = [
-    'https://wttr.in/?format=j1',
-    'https://wttr.in/@auto?format=j1',
+    'https://wttr.in/Shanghai?format=j1&lang=zh',
+    'https://wttr.in/上海?format=j1&lang=zh',
   ];
 
   for (const url of urls) {
@@ -747,7 +778,7 @@ async function updateWeather() {
       if (!c) continue;
       const code = parseInt(c.weatherCode);
       const loc = (data.nearest_area?.[0]?.areaName?.[0]?.value) || '';
-      iconEl.textContent = WEATHER_ICONS[code] || '🌤️';
+      renderWeatherIcon(weatherCodeToType(code));
       tempEl.textContent = `${c.temp_C}°`;
       iconEl.title = loc ? `${loc} · ${c.weatherDesc[0].value}` : c.weatherDesc[0].value;
       return; // success
@@ -1387,6 +1418,7 @@ async function renderStaticDashboard() {
   }
   renderDateDisplay();
   updateWeather();
+  updateClock();
 
   // --- Fetch tabs ---
   await fetchOpenTabs();
@@ -2079,6 +2111,23 @@ document.addEventListener('click', (e) => {
     popup.style.display = 'none';
   }
 });
+
+
+/* ----------------------------------------------------------------
+   CLOCK — live time display
+   ---------------------------------------------------------------- */
+
+function updateClock() {
+  const el = document.getElementById('clock');
+  if (!el) return;
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  el.textContent = `${h}:${m}`;
+}
+
+// Update every second
+setInterval(updateClock, 1000);
 
 
 /* ----------------------------------------------------------------
