@@ -589,124 +589,16 @@ function updateNightMode() {
  * Lunar Calendar Calculator
  * Simplified Chinese lunar calendar — no external dependencies
  */
-const LUNAR_INFO = [
-  0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
-  0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
-  0x04970, 0x0a4b0, 0x0b4b5, 0x06a50, 0x06d40, 0x1ab54, 0x02b60, 0x09570, 0x052f2, 0x04970,
-  0x06566, 0x0d4a0, 0x0ea50, 0x06e95, 0x05ad0, 0x02b60, 0x186e3, 0x092e0, 0x1c8d7, 0x0c950,
-  0x0d4a0, 0x1d8a6, 0x0b550, 0x056a0, 0x1a5b4, 0x025d0, 0x092d0, 0x0d2b2, 0x0a950, 0x0b557,
-  0x06ca0, 0x0b550, 0x15355, 0x04da0, 0x0a5b0, 0x14573, 0x052b0, 0x0a9a8, 0x0e950, 0x06aa0,
-  0x0aea6, 0x0ab50, 0x04b60, 0x0aae4, 0x0a570, 0x05260, 0x0f263, 0x0d950, 0x05b57, 0x056a0,
-  0x096d0, 0x04dd5, 0x04ad0, 0x0a4d0, 0x0d4d4, 0x0d250, 0x0d558, 0x0b540, 0x0b6a0, 0x195a6,
-  0x095b0, 0x049b0, 0x0a974, 0x0a4b0, 0x0b27a, 0x06a50, 0x06d40, 0x0af46, 0x0ab60, 0x09570,
-  0x04af5, 0x04970, 0x064b0, 0x074a3, 0x0ea50, 0x06b58, 0x055c0, 0x0ab60, 0x096d5, 0x092e0,
-  0x0c960, 0x0d954, 0x0d4a0, 0x0da50, 0x07552, 0x056a0, 0x0abb7, 0x025d0, 0x092d0, 0x0cab5,
-  0x0a950, 0x0b4a0, 0x0baa4, 0x0ad50, 0x055d9, 0x04ba0, 0x0a5b0, 0x15176, 0x052b0, 0x0a930,
-  0x07954, 0x06aa0, 0x0ad50, 0x05b52, 0x04b60, 0x0a6e6, 0x0a4e0, 0x0d260, 0x0ea65, 0x0d530,
-  0x05aa0, 0x076a3, 0x096d0, 0x04afb, 0x04ad0, 0x0a4d0, 0x1d0b6, 0x0d250, 0x0d520, 0x0dd45,
-  0x0b5a0, 0x056d0, 0x055b2, 0x049b0, 0x0a577, 0x0a4b0, 0x0aa50, 0x1b255, 0x06d20, 0x0ada0,
-  0x14b63, 0x09370, 0x049f8, 0x04970, 0x064b0, 0x168a6, 0x0ea50, 0x06b20, 0x1a6c4, 0x0aae0,
-  0x0a2e0, 0x0d2e3, 0x0c960, 0x0d557, 0x0d4a0, 0x0da50, 0x05d55, 0x056a0, 0x0a6d0, 0x055d4,
-  0x052d0, 0x0a9b8, 0x0a950, 0x0b4a0, 0x0b6a6, 0x0ad50, 0x055a0, 0x0aba4, 0x0a5b0, 0x052b0,
-  0x0b273, 0x06930, 0x07337, 0x06aa0, 0x0ad50, 0x14b55, 0x04b60, 0x0a570, 0x054e4, 0x0d160,
-  0x0e968, 0x0d520, 0x0daa0, 0x16aa6, 0x056d0, 0x04ae0, 0x0a9d4, 0x0a2d0, 0x0d150, 0x0f252,
-  0x0d520
-];
-
-const LUNAR_CHARS = '日一二三四五六七八九十月正腊';
-const HEAVENLY_STEMS = '甲乙丙丁戊己庚辛壬癸';
-const EARTHLY_BRANCHES = '子丑寅卯辰巳午未申酉戌亥';
-const ZODIAC = '鼠牛虎兔龙蛇马羊猴鸡狗猪';
-
-function lunarYearDays(y) {
-  let sum = 348;
-  let info = 0x8000;
-  for (let i = 0; i < 12; i++) {
-    if (LUNAR_INFO[y - 1900] & info) sum++;
-    info >>= 1;
-  }
-  return sum + leapMonthDays(y);
-}
-
-function leapMonthDays(y) {
-  if (!(LUNAR_INFO[y - 1900] & 0x10000)) return 0;
-  return (LUNAR_INFO[y - 1900] & 0xf0000) ? 30 : 29;
-}
-
-function leapMonth(y) {
-  return LUNAR_INFO[y - 1900] & 0xf;
-}
-
-function lunarDateToString(year, month, day, isLeap) {
-  let s = '';
-  if (month === 1) s += '正';
-  else s += LUNAR_CHARS[month] || month;
-  s += '月';
-  if (isLeap) s += '闰';
-  if (day === 10) s += '初十';
-  else if (day === 20) s += '二十';
-  else if (day === 30) s += '三十';
-  else {
-    const tens = Math.floor(day / 10);
-    const ones = day % 10;
-    if (tens === 0) s += '初';
-    else if (tens === 1) s += '十';
-    else if (tens === 2) s += '廿';
-    else if (tens === 3) s += '卅';
-    s += LUNAR_CHARS[ones] || ones;
-  }
-  return s;
-}
-
-function solarToLunar(y, m, d) {
-  // Days from 1900-01-31 (lunar 1900-01-01)
-  const lst = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  let offset = 0;
-  for (let i = 1900; i < y; i++) {
-    offset += (i % 4 === 0 && (i % 100 !== 0 || i % 400 === 0)) ? 366 : 365;
-  }
-  for (let i = 1; i < m; i++) offset += lst[i - 1];
-  if (y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0) && m > 2) offset++;
-  offset += d - 1;
-
-  // Find lunar year
-  let lunarYear = 1900;
-  while (lunarYear < 2100 && offset >= lunarYearDays(lunarYear)) {
-    offset -= lunarYearDays(lunarYear);
-    lunarYear++;
-  }
-
-  // Find lunar month
-  let lm = leapMonth(lunarYear);
-  let lunarMonth = 1;
-  let isLeap = false;
-  let days = (LUNAR_INFO[lunarYear - 1900] & 0xf0000) ? 30 : 29;
-
-  for (let i = 0; i < 12 || (lm > 0 && lunarMonth === lm && !isLeap); i++) {
-    if (i === lm && !isLeap) {
-      isLeap = true;
-      days = leapMonthDays(lunarYear);
-    } else {
-      days = (LUNAR_INFO[lunarYear - 1900] & (0x10000 >> i)) ? 30 : 29;
-    }
-    if (offset < days) break;
-    offset -= days;
-    if (!isLeap || (isLeap && lunarMonth !== lm)) lunarMonth++;
-    if (lunarMonth > 12) lunarMonth = 1;
-  }
-
-  return { year: lunarYear, month: lunarMonth, day: offset + 1, isLeap };
-}
 
 function getLunarDateString() {
-  const now = new Date();
-  const { year, month, day, isLeap } = solarToLunar(now.getFullYear(), now.getMonth() + 1, now.getDate());
-  const stemIdx = (year - 4) % 10;
-  const branchIdx = (year - 4) % 12;
-  const cyclical = HEAVENLY_STEMS[stemIdx] + EARTHLY_BRANCHES[branchIdx];
-  const zodiac = ZODIAC[branchIdx];
-  const dateStr = lunarDateToString(year, month, day, isLeap);
-  return `${cyclical}年(${zodiac}) ${dateStr}`;
+  if (typeof lunisolar === 'undefined') return '';
+  try {
+    const now = new Date();
+    const ds = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+    return lunisolar(ds).format('lY年(lZ) lM月lD');
+  } catch {
+    return '';
+  }
 }
 
 /**
@@ -2110,14 +2002,14 @@ function renderCalendar(year, month) {
       if (day === today.d && cellMonth === today.m && cellYear === today.y) cls += ' today';
 
       // Lunar date
-      const lunar = solarToLunar(cellYear, cellMonth, day);
-      const lunarDay = lunar.day === 1 ? lunarDateToString(lunar.year, lunar.month, lunar.day, lunar.isLeap)
-                        : (lunar.day <= 10 ? `初${'一二三四五六七八九十'[lunar.day-1]||''}`
-                           : lunar.day < 20 ? `十${'一二三四五六七八九'[lunar.day-11]||''}`
-                           : lunar.day === 20 ? '二十'
-                           : lunar.day === 30 ? '三十'
-                           : lunar.day > 20 && lunar.day < 30 ? `廿${'一二三四五六七八九'[lunar.day-21]||''}`
-                           : lunar.day === 10 ? '初十' : '');
+      let lunarDay = '';
+      if (typeof lunisolar !== 'undefined') {
+        try {
+          const ds = `${cellYear}/${cellMonth}/${day}`;
+          const f = lunisolar(ds).format('lD');
+          lunarDay = f === '初一' ? lunisolar(ds).format('lM月lD') : f;
+        } catch {}
+      }
 
       rows.push(`<div class="cal-cell${cls}">
         <div class="cal-day">${day}</div>
@@ -2129,9 +2021,12 @@ function renderCalendar(year, month) {
   grid.innerHTML = rows.join('');
 
   // Footer shows today's lunar date
-  const tl = solarToLunar(today.y, today.m, today.d);
-  footer.textContent = `今天：${HEAVENLY_STEMS[(tl.year-4)%10]}${EARTHLY_BRANCHES[(tl.year-4)%12]}年 ` +
-    lunarDateToString(tl.year, tl.month, tl.day, tl.isLeap);
+  if (footer && typeof lunisolar !== 'undefined') {
+    try {
+      const ds = `${today.y}/${today.m}/${today.d}`;
+      footer.textContent = `今天 ${lunisolar(ds).format('lY年 lM(lL)lD')}`;
+    } catch {}
+  }
 }
 
 // Calendar state
