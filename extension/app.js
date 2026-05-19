@@ -887,6 +887,59 @@ function smartTitle(title, url) {
 
 
 /* ----------------------------------------------------------------
+   FAVICON — 多 CDN 缓存
+   ---------------------------------------------------------------- */
+
+const faviconCache = new Map(); // domain -> data URL or verified URL string
+const FAVICON_CDNS = [
+  (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=16`,
+  (d) => `https://icons.duckduckgo.com/ip3/${d}.ico`,
+  (d) => `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.google.com/s2/favicons?domain=${d}&sz=16`)}`,
+];
+
+function getFaviconSrc(domain) {
+  if (!domain) return '';
+  if (faviconCache.has(domain)) return faviconCache.get(domain);
+  return FAVICON_CDNS[0](domain);
+}
+
+function faviconOnError(img, domain) {
+  // Try next CDN in chain
+  const current = img.src;
+  const cdnIndex = FAVICON_CDNS.findIndex(fn => fn(domain) === current);
+  if (cdnIndex >= 0 && cdnIndex < FAVICON_CDNS.length - 1) {
+    const nextUrl = FAVICON_CDNS[cdnIndex + 1](domain);
+    faviconCache.set(domain, nextUrl);
+    img.src = nextUrl;
+  } else {
+    // All CDNs failed — hide and cache empty
+    faviconCache.set(domain, '');
+    img.style.display = 'none';
+  }
+}
+
+
+/* Global favicon retry: on image error, try next CDN */
+document.addEventListener('error', (e) => {
+  const img = e.target;
+  if (!img || img.tagName !== 'IMG' || !img.dataset.domain) return;
+  const domain = img.dataset.domain;
+  if (!domain) return;
+
+  const current = img.src;
+  if (current.includes('google.com/s2/favicons')) {
+    const fallback = `https://icons.duckduckgo.com/ip3/${domain}.ico`;
+    faviconCache.set(domain, fallback);
+    img.src = fallback;
+  } else if (current.includes('duckduckgo.com')) {
+    // Both failed — hide
+    faviconCache.set(domain, '');
+    img.style.display = 'none';
+  }
+}, true);
+
+
+/* ----------------------------------------------------------------
    SVG ICON STRINGS
    ---------------------------------------------------------------- */
 const ICONS = {
@@ -961,11 +1014,11 @@ function buildOverflowChips(hiddenTabs, urlCounts = {}) {
     const safeTitle = label.replace(/"/g, '&quot;');
     let domain = '';
     try { domain = new URL(tab.url).hostname; } catch {}
-    const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
+    const faviconUrl = domain ? getFaviconSrc(domain) : '';
     const lastAccessStr = tab.lastAccessed ? timeAgo(new Date(tab.lastAccessed).toISOString()) : '';
     const chipTitle = lastAccessStr ? `${safeTitle} · 上次访问 ${lastAccessStr}` : safeTitle;
     return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="${chipTitle}">
-      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-domain="${domain}" onerror="this.style.display='none'">` : ''}
       <span class="chip-text">${label}</span>${dupeTag}
       <div class="chip-actions">
         <button class="chip-action chip-save" data-action="defer-single-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="Save for later">
@@ -1044,11 +1097,11 @@ function renderDomainCard(group) {
     const safeTitle = label.replace(/"/g, '&quot;');
     let domain = '';
     try { domain = new URL(tab.url).hostname; } catch {}
-    const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
+    const faviconUrl = domain ? getFaviconSrc(domain) : '';
     const lastAccessStr = tab.lastAccessed ? timeAgo(new Date(tab.lastAccessed).toISOString()) : '';
     const chipTitle = lastAccessStr ? `${safeTitle} · 上次访问 ${lastAccessStr}` : safeTitle;
     return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="${chipTitle}">
-      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
+      ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-domain="${domain}" onerror="this.style.display='none'">` : ''}
       <span class="chip-text">${label}</span>${dupeTag}
       <div class="chip-actions">
         <button class="chip-action chip-save" data-action="defer-single-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="Save for later">
@@ -1172,7 +1225,7 @@ function renderDeferredItem(item) {
       <input type="checkbox" class="deferred-checkbox" data-action="check-deferred" data-deferred-id="${item.id}">
       <div class="deferred-info">
         <a href="${item.url}" target="_blank" rel="noopener" class="deferred-title" title="${(item.title || '').replace(/"/g, '&quot;')}">
-          <img src="${faviconUrl}" alt="" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px" onerror="this.style.display='none'">${item.title || item.url}
+          <img src="${faviconUrl}" alt="" style="width:14px;height:14px;vertical-align:-2px;margin-right:4px" data-domain="${domain}" onerror="this.style.display='none'">${item.title || item.url}
         </a>
         <div class="deferred-meta">
           <span>${domain}</span>
@@ -1236,7 +1289,7 @@ async function renderRecentlyClosedColumn() {
       const safeTitle = (item.title || '').replace(/"/g, '&quot;');
       return `
         <div class="closed-item" data-closed-id="${item.id}">
-          <img class="closed-item-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">
+          <img class="closed-item-favicon" src="${faviconUrl}" alt="" data-domain="${domain}" onerror="this.style.display='none'">
           <div class="closed-item-info">
             <a href="${safeUrl}" target="_blank" rel="noopener" class="closed-item-title" title="${safeTitle}">${item.title || item.url}</a>
             <div class="closed-item-time">${domain} · ${ago}</div>
@@ -2109,10 +2162,16 @@ function updateHealthReminders() {
     tipEl.textContent = `${tip[0]} ${tip[1]}`;
     addHealthLog(tip[0], tip[1]);
     lastReminderTime = Date.now();
-    chrome.storage.local.set({ healthLastReminder: lastReminderTime, healthTipIndex });
-  } else if (tipEl.textContent === '') {
-    const idle = ['✨ 活力满满', '💪 状态不错', '🌟 今天很棒', '☀️ 精神饱满', '🎯 专注中'];
-    tipEl.textContent = idle[Math.floor(Math.random() * idle.length)];
+    chrome.storage.local.set({ healthLastReminder: lastReminderTime, healthTipIndex, healthLog });
+  } else {
+    // Show latest unfinished reminder, or idle message
+    const latest = healthLog.find(item => !item.done);
+    if (latest) {
+      tipEl.textContent = `${latest.icon} ${latest.text}`;
+    } else if (tipEl.textContent === '') {
+      const idle = ['✨ 活力满满', '💪 状态不错', '🌟 今天很棒', '☀️ 精神饱满', '🎯 专注中'];
+      tipEl.textContent = idle[Math.floor(Math.random() * idle.length)];
+    }
   }
 }
 
@@ -2146,7 +2205,16 @@ document.addEventListener('click', (e) => {
   const cb = e.target.closest('.health-checkbox');
   if (cb) {
     const logItem = healthLog.find(item => item.id === cb.dataset.logId);
-    if (logItem) logItem.done = cb.checked;
+    if (logItem) {
+      logItem.done = cb.checked;
+      chrome.storage.local.set({ healthLog });
+      // Update badge text immediately
+      const tipEl = document.getElementById('healthTip');
+      if (tipEl) {
+        const pending = healthLog.find(item => !item.done);
+        tipEl.textContent = pending ? `${pending.icon} ${pending.text}` : (['✨ 活力满满', '💪 状态不错', '🌟 今天很棒', '☀️ 精神饱满', '🎯 专注中'])[Math.floor(Math.random() * 5)];
+      }
+    }
     e.stopPropagation();
     return;
   }
@@ -2161,14 +2229,24 @@ document.addEventListener('click', (e) => {
 
 // Init health timer from storage (persists across refreshes, resets daily)
 (async function initHealthTimer() {
-  const { healthLastReminder, healthTipIndex: storedIdx } = await chrome.storage.local.get(['healthLastReminder', 'healthTipIndex']);
+  const data = await chrome.storage.local.get(['healthLastReminder', 'healthTipIndex', 'healthLog', 'healthLogDate']);
   const now = Date.now();
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+  const todayStr = `${today.getFullYear()}-${today.getMonth()+1}-${today.getDate()}`;
 
-  if (storedIdx) healthTipIndex = storedIdx;
-  if (healthLastReminder && healthLastReminder >= todayStart) {
-    lastReminderTime = healthLastReminder;
+  if (data.healthTipIndex) healthTipIndex = data.healthTipIndex;
+
+  // Load today's log or start fresh for new day
+  if (data.healthLogDate === todayStr && Array.isArray(data.healthLog)) {
+    healthLog = data.healthLog;
+  } else {
+    healthLog = [];
+    await chrome.storage.local.set({ healthLog: [], healthLogDate: todayStr });
+  }
+
+  if (data.healthLastReminder && data.healthLastReminder >= todayStart) {
+    lastReminderTime = data.healthLastReminder;
   } else {
     lastReminderTime = now;
     await chrome.storage.local.set({ healthLastReminder: now, healthTipIndex });
