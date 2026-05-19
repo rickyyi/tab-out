@@ -245,6 +245,15 @@ body {
   color: var(--ink);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
+  padding-left: 80px;
+  padding-right: 80px;
+}
+
+@media (max-width: 800px) {
+  body {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
 }
 
 /* Subtle paper texture */
@@ -255,6 +264,11 @@ body::before {
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E");
   pointer-events: none;
   z-index: 0;
+}
+
+body {
+  padding-left: 80px;
+  padding-right: 80px;
 }
 
 .container {
@@ -809,37 +823,21 @@ header {
 .mission-card {
   background: var(--card-bg);
   border: 1px solid var(--warm-gray);
-  border-radius: 8px;
+  border-radius: 14px;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: box-shadow 0.25s ease, transform 0.25s ease;
   cursor: pointer;
-  position: relative;
-  overflow: hidden;
-  break-inside: avoid;       /* don't split a card across columns */
-  margin-bottom: 12px;       /* vertical spacing (replaces grid gap) */
+  break-inside: avoid;
+  margin-bottom: 12px;
 }
 
 /* Colored top border instead of side bar for grid cards */
-.mission-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: var(--warm-gray);
-}
-
-.mission-card.has-active-bar::before { background: var(--status-active); }
-.mission-card.has-amber-bar::before { background: var(--accent-amber); }
-.mission-card.has-neutral-bar::before { background: var(--warm-gray); }
+/* Colored top border removed for flat design */
 
 .mission-card:hover {
-  box-shadow: 0 4px 20px var(--shadow);
-  transform: translateY(-1px);
+  background: rgba(200, 113, 58, 0.03);
 }
 
 /* Closing animation — card scales down and fades out */
@@ -1283,9 +1281,6 @@ body.night-mode .mission-card {
   backdrop-filter: blur(8px);
 }
 
-body.night-mode .mission-card::before {
-  background: rgba(232, 226, 218, 0.12);
-}
 
 body.night-mode .mission-name {
   color: #d8c8b8;
@@ -1558,6 +1553,51 @@ footer { animation: fadeUp 0.5s ease 0.65s both; }
   font-size: 11px;
   color: var(--ink);
   padding: 3px 0;
+}
+
+.health-popup-item.done {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.health-popup-item.done span {
+  text-decoration: line-through;
+}
+
+.health-checkbox {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--warm-gray);
+  border-radius: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+  position: relative;
+  background: var(--card-bg);
+}
+
+.health-checkbox:hover {
+  border-color: var(--accent-sage);
+  background: rgba(90, 122, 98, 0.04);
+}
+
+.health-checkbox:checked {
+  background: var(--accent-sage);
+  border-color: var(--accent-sage);
+}
+
+.health-checkbox:checked::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: white;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .health-popup-time {
@@ -1838,6 +1878,22 @@ body.night-mode .health-badge-tip {
   .deferred-column {
     width: 100%;
     position: static;
+  }
+  .pixel-crab {
+    display: none;
+  }
+  .health-badge {
+    display: none;
+  }
+}
+
+@media (max-width: 1200px) {
+  .pixel-crab {
+    left: 4px;
+  }
+  .health-badge {
+    right: 4px;
+    bottom: 8px;
   }
 }
 
