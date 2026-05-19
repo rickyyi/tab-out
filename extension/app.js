@@ -99,13 +99,14 @@ async function fetchOpenTabs() {
 
     const tabs = await chrome.tabs.query({});
     openTabs = tabs.map(t => ({
-      id:       t.id,
-      url:      t.url,
-      title:    t.title,
-      windowId: t.windowId,
-      active:   t.active,
+      id:          t.id,
+      url:         t.url,
+      title:       t.title,
+      windowId:    t.windowId,
+      active:      t.active,
+      lastAccessed: t.lastAccessed || 0,
       // Flag Tab Out's own pages so we can detect duplicate new tabs
-      isTabOut: t.url === newtabUrl || t.url === 'chrome://newtab/',
+      isTabOut:    t.url === newtabUrl || t.url === 'chrome://newtab/',
     }));
   } catch {
     // chrome.tabs API unavailable (shouldn't happen in an extension page)
@@ -557,7 +558,31 @@ function getGreeting() {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
   if (hour < 17) return 'Good afternoon';
+  if (hour >= 23 || hour < 5) return '';
   return 'Good evening';
+}
+
+const NIGHT_PHRASES = [
+  '还不睡吗 🌙',
+  '在等谁的消息吗 💫',
+  '我陪你一会儿 ✨',
+  '夜深了 🌃',
+  '还在忙呢 🍵',
+  '夜猫子 🦉',
+  '该睡了哦 🌜',
+  '晚安前再看一眼 🌛',
+];
+
+function updateNightMode() {
+  const hour = new Date().getHours();
+  const isNight = hour >= 23 || hour < 5;
+  document.body.classList.toggle('night-mode', isNight);
+
+  const greetingEl = document.getElementById('greeting');
+  if (isNight && greetingEl) {
+    const phrase = NIGHT_PHRASES[Math.floor(Math.random() * NIGHT_PHRASES.length)];
+    greetingEl.innerHTML = `${phrase} <span class="weather-icon" id="weatherIcon"></span><span class="weather-temp" id="weatherTemp"></span>`;
+  }
 }
 
 /**
@@ -1045,7 +1070,9 @@ function buildOverflowChips(hiddenTabs, urlCounts = {}) {
     let domain = '';
     try { domain = new URL(tab.url).hostname; } catch {}
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
-    return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" title="${safeTitle}">
+    const lastAccessStr = tab.lastAccessed ? timeAgo(new Date(tab.lastAccessed).toISOString()) : '';
+    const chipTitle = lastAccessStr ? `${safeTitle} · 上次访问 ${lastAccessStr}` : safeTitle;
+    return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="${chipTitle}">
       ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
       <span class="chip-text">${label}</span>${dupeTag}
       <div class="chip-actions">
@@ -1126,7 +1153,9 @@ function renderDomainCard(group) {
     let domain = '';
     try { domain = new URL(tab.url).hostname; } catch {}
     const faviconUrl = domain ? `https://www.google.com/s2/favicons?domain=${domain}&sz=16` : '';
-    return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" title="${safeTitle}">
+    const lastAccessStr = tab.lastAccessed ? timeAgo(new Date(tab.lastAccessed).toISOString()) : '';
+    const chipTitle = lastAccessStr ? `${safeTitle} · 上次访问 ${lastAccessStr}` : safeTitle;
+    return `<div class="page-chip clickable${chipClass}" data-action="focus-tab" data-tab-url="${safeUrl}" data-tab-title="${safeTitle}" title="${chipTitle}">
       ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" onerror="this.style.display='none'">` : ''}
       <span class="chip-text">${label}</span>${dupeTag}
       <div class="chip-actions">
@@ -1359,7 +1388,8 @@ function filterTabsBySearch(query) {
       const title = chip.querySelector('.chip-text');
       const titleText = (title ? title.textContent : '').toLowerCase();
       const chipUrl = (chip.dataset.tabUrl || '').toLowerCase();
-      const matches = !q || titleText.includes(q) || chipUrl.includes(q);
+      const chipTitle = (chip.dataset.tabTitle || chip.title || '').toLowerCase();
+      const matches = !q || titleText.includes(q) || chipUrl.includes(q) || chipTitle.includes(q);
       chip.style.display = matches ? '' : 'none';
       if (matches) hasVisibleChip = true;
     });
@@ -1418,7 +1448,9 @@ async function renderStaticDashboard() {
   }
   renderDateDisplay();
   updateWeather();
+  updateNightMode();
   updateClock();
+  updateHealthReminders();
 
   // --- Fetch tabs ---
   await fetchOpenTabs();
@@ -1533,7 +1565,10 @@ async function renderStaticDashboard() {
     const bIsPriority = isLandingDomain(b.domain);
     if (aIsPriority !== bIsPriority) return aIsPriority ? -1 : 1;
 
-    return b.tabs.length - a.tabs.length;
+    // Sort by most recently accessed tab (across all tabs in the group)
+    const aRecent = Math.max(...a.tabs.map(t => t.lastAccessed || 0));
+    const bRecent = Math.max(...b.tabs.map(t => t.lastAccessed || 0));
+    return bRecent - aRecent;
   });
 
   // --- Render domain cards ---
@@ -2126,8 +2161,109 @@ function updateClock() {
   el.textContent = `${h}:${m}`;
 }
 
-// Update every second
 setInterval(updateClock, 1000);
+
+
+/* ----------------------------------------------------------------
+   HEALTH REMINDERS — session timer + wellness tips
+   ---------------------------------------------------------------- */
+
+const HEALTH_TIPS = [
+  ['💧', '喝口水吧'],
+  ['🧘', '站起来伸个懒腰'],
+  ['👀', '看看窗外，休息一下眼睛'],
+  ['🚶', '起来走一走，久坐伤身'],
+  ['🫁', '深呼吸三次，放空大脑'],
+  ['💦', '该喝水了！皮肤需要你'],
+  ['🌿', '站起来转转，促进循环'],
+  ['🧎', '换个姿势坐'],
+  ['☕', '起来倒杯水或茶'],
+  ['🌅', '看远处 20 秒，放松睫状肌'],
+];
+
+let sessionStart = null;
+let healthTipInterval = null;
+let healthLog = [];
+let lastTipIndex = -1;
+
+function addHealthLog(icon, text) {
+  const now = new Date();
+  const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+  healthLog.unshift({ time: t, icon, text });
+}
+
+function updateHealthReminders() {
+  const timerEl = document.getElementById('healthTimer');
+  const tipEl = document.getElementById('healthTip');
+  if (!timerEl || !tipEl) return;
+  if (!sessionStart) { timerEl.textContent = '0:00'; tipEl.textContent = ''; return; }
+
+  const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+  const mins = Math.floor(elapsed / 60);
+  const secs = elapsed % 60;
+
+  timerEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+
+  const tipIndex = Math.min(Math.floor(mins / 15), HEALTH_TIPS.length - 1);
+  if (tipIndex !== lastTipIndex) {
+    lastTipIndex = tipIndex;
+    const tip = HEALTH_TIPS[tipIndex];
+    tipEl.textContent = `${tip[0]} ${tip[1]}`;
+    addHealthLog(tip[0], tip[1]);
+  }
+}
+
+// Click badge → toggle popup, click outside → close
+document.addEventListener('click', (e) => {
+  const popup = document.getElementById('healthPopup');
+  if (!popup) return;
+
+  // Close on click outside
+  if (!e.target.closest('#healthBadge')) {
+    popup.style.display = 'none';
+    return;
+  }
+
+  // Click inside popup content — don't toggle
+  if (e.target.closest('.health-popup')) return;
+
+  const isOpen = popup.style.display !== 'none';
+  popup.style.display = isOpen ? 'none' : 'block';
+
+  if (!isOpen) {
+    const list = document.getElementById('healthPopupList');
+    if (list) {
+      if (healthLog.length === 0) {
+        list.innerHTML = '<div class="health-popup-empty">暂无记录</div>';
+      } else {
+        list.innerHTML = healthLog.map(item =>
+          `<div class="health-popup-item">
+            <span class="health-popup-time">${item.time}</span>
+            <span>${item.icon} ${item.text}</span>
+          </div>`
+        ).join('');
+      }
+    }
+  }
+});
+
+// Init session timer from storage (persists across tab refreshes)
+(async function initHealthTimer() {
+  const { sessionStart: stored = null } = await chrome.storage.local.get('sessionStart');
+  const now = Date.now();
+  const today = new Date();
+  const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
+
+  if (stored && stored >= todayStart) {
+    sessionStart = stored;
+  } else {
+    sessionStart = now;
+    await chrome.storage.local.set({ sessionStart: now });
+  }
+
+  updateHealthReminders();
+  healthTipInterval = setInterval(updateHealthReminders, 1000);
+})();
 
 
 /* ----------------------------------------------------------------

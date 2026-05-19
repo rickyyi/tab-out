@@ -1232,6 +1232,203 @@ footer {
   letter-spacing: 2px;
   line-height: 1;
   padding-top: 4px;
+  transition: all 0.8s ease;
+}
+
+
+/* ================================================================
+   NIGHT MODE — 深夜陪伴模式 (23:00–05:00)
+   ================================================================ */
+
+body.night-mode {
+  background: #1e1a17;
+}
+
+body.night-mode::before {
+  opacity: 0.015;
+}
+
+body.night-mode .container {
+  /* Override the inherited opacity if any */
+}
+
+body.night-mode .header-left h1 {
+  color: #e8d8c8;
+  font-weight: 300;
+}
+
+body.night-mode .clock {
+  font-size: 40px;
+  color: #e8a040;
+  text-shadow: 0 0 20px rgba(232, 160, 64, 0.15);
+  letter-spacing: 4px;
+}
+
+body.night-mode .date-gregorian,
+body.night-mode .date-weekday {
+  color: #c8b8a8;
+}
+
+body.night-mode .date-lunar {
+  color: #a09080;
+}
+
+body.night-mode .mission-card {
+  background: rgba(255, 253, 249, 0.04);
+  border-color: rgba(232, 226, 218, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+body.night-mode .mission-card::before {
+  background: rgba(232, 226, 218, 0.12);
+}
+
+body.night-mode .mission-name {
+  color: #d8c8b8;
+}
+
+body.night-mode .chip-text {
+  color: #c8b8a8;
+}
+
+body.night-mode .section-header h2 {
+  color: #a09080;
+}
+
+body.night-mode .section-line {
+  background: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .search-bar {
+  background: rgba(255, 253, 249, 0.04);
+  border-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode header {
+  border-bottom-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode footer {
+  border-top-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .stat-num {
+  color: #d8c8b8;
+}
+
+body.night-mode .deferred-item {
+  border-bottom-color: rgba(232, 226, 218, 0.06);
+}
+
+body.night-mode .deferred-title {
+  color: #c8b8a8;
+}
+
+body.night-mode .hotsearch-side {
+  background: rgba(30, 26, 23, 0.95);
+  border-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .hotsearch-side-header {
+  border-bottom-color: rgba(232, 226, 218, 0.08);
+  color: #d8c8b8;
+}
+
+body.night-mode .hotsearch-title {
+  color: #c8b8a8;
+}
+
+body.night-mode .hotsearch-rank {
+  color: #a09080;
+}
+
+body.night-mode .hotsearch-side-footer {
+  border-top-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .hotsearch-side-tab {
+  border-color: rgba(232, 226, 218, 0.12);
+  color: #a09080;
+}
+
+body.night-mode .hotsearch-side-tab.active {
+  background: #e8a040;
+  border-color: #e8a040;
+  color: #1e1a17;
+}
+
+body.night-mode .closed-item-title {
+  color: #c8b8a8;
+}
+
+body.night-mode .recently-closed-column {
+  border-top-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .action-btn {
+  border-color: rgba(232, 226, 218, 0.12);
+  color: #a09080;
+  background: transparent;
+}
+
+body.night-mode .action-btn.close-tabs {
+  border-color: rgba(200, 113, 58, 0.2);
+  color: #c8713a;
+}
+
+body.night-mode .tab-cleanup-banner {
+  background: rgba(200, 113, 58, 0.06);
+  border-color: rgba(200, 113, 58, 0.12);
+}
+
+body.night-mode .toast {
+  background: rgba(232, 216, 200, 0.15);
+  backdrop-filter: blur(12px);
+  color: #e8d8c8;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+
+body.night-mode .calendar-popup {
+  background: rgba(30, 26, 23, 0.97);
+  border-color: rgba(232, 226, 218, 0.12);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+body.night-mode .cal-title {
+  color: #d8c8b8;
+}
+
+body.night-mode .cal-cell .cal-day {
+  color: #c8b8a8;
+}
+
+body.night-mode .cal-cell .cal-lunar {
+  color: #a09080;
+}
+
+body.night-mode .cal-nav {
+  border-color: rgba(232, 226, 218, 0.12);
+  color: #a09080;
+}
+
+body.night-mode .cal-weekdays {
+  border-bottom-color: rgba(232, 226, 218, 0.08);
+  color: #a09080;
+}
+
+body.night-mode .cal-footer {
+  border-top-color: rgba(232, 226, 218, 0.08);
+  color: #a09080;
+}
+
+body.night-mode .cal-today-btn {
+  border-color: rgba(232, 226, 218, 0.12);
+  color: #a09080;
+}
+
+body.night-mode .cal-today-btn:hover {
+  color: #e8a040;
+  border-color: #e8a040;
 }
 
 .last-refresh {
@@ -1293,6 +1490,119 @@ footer { animation: fadeUp 0.5s ease 0.65s both; }
 .mission-tag.neutral {
   color: var(--muted);
   background: rgba(154, 145, 138, 0.1);
+}
+
+/* ================================================================
+   HEALTH REMINDERS — bottom right corner
+   ================================================================ */
+
+.health-badge {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: rgba(232, 200, 160, 0.15);
+  border: 1px solid rgba(232, 160, 40, 0.2);
+  border-radius: 20px;
+  box-shadow: 0 2px 8px var(--shadow);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.health-popup {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  width: 220px;
+  background: var(--card-bg);
+  border: 1px solid var(--warm-gray);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px var(--shadow);
+  z-index: 300;
+  padding: 10px 12px;
+  animation: fadeUp 0.2s ease both;
+}
+
+.health-popup-title {
+  font-family: 'Newsreader', serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--warm-gray);
+}
+
+.health-popup-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.health-popup-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink);
+  padding: 3px 0;
+}
+
+.health-popup-time {
+  font-size: 10px;
+  color: var(--muted);
+  flex-shrink: 0;
+  width: 32px;
+}
+
+.health-popup-empty {
+  font-size: 11px;
+  color: var(--muted);
+  font-style: italic;
+  text-align: center;
+  padding: 8px 0;
+}
+
+/* Night mode */
+body.night-mode .health-popup {
+  background: rgba(30, 26, 23, 0.97);
+  border-color: rgba(232, 226, 218, 0.08);
+}
+
+.health-badge-timer {
+  font-family: 'Newsreader', serif;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--accent-sage);
+  letter-spacing: 0.5px;
+}
+
+.health-badge-tip {
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Night mode */
+body.night-mode .health-badge {
+  background: rgba(30, 26, 23, 0.9);
+  border-color: rgba(232, 226, 218, 0.08);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+}
+
+body.night-mode .health-badge-timer {
+  color: #8aaa92;
+}
+
+body.night-mode .health-badge-tip {
+  color: #a09080;
 }
 
 /* ================================================================
