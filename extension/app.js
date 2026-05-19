@@ -595,7 +595,7 @@ function getLunarDateString() {
   try {
     const now = new Date();
     const ds = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
-    return lunisolar(ds).format('lY年(lZ) lM月lD');
+    return lunisolar(ds).format('lY年 lMlD');
   } catch {
     return '';
   }
@@ -2024,7 +2024,7 @@ function renderCalendar(year, month) {
   if (footer && typeof lunisolar !== 'undefined') {
     try {
       const ds = `${today.y}/${today.m}/${today.d}`;
-      footer.textContent = `今天 ${lunisolar(ds).format('lY年 lM(lL)lD')}`;
+      footer.textContent = `今天 ${lunisolar(ds).format('lY年 lMlD')}`;
     } catch {}
   }
 }
@@ -2062,62 +2062,77 @@ setInterval(updateClock, 1000);
 
 
 /* ----------------------------------------------------------------
-   HEALTH REMINDERS — timer + scheduled reminders
+   HEALTH REMINDERS — 30-min cycle timer
    ---------------------------------------------------------------- */
 
-const HEALTH_REMINDERS = [
-  { id: 'water',  icon: '💧', text: '喝口水吧',           interval: 30 },
-  { id: 'eye',    icon: '👀', text: '看看窗外，休息眼睛', interval: 20 },
-  { id: 'stretch',icon: '🧘', text: '站起来伸个懒腰',      interval: 45 },
+const HEALTH_TIPS = [
+  ['💧', '喝口水吧'],
+  ['🧘', '站起来伸个懒腰'],
+  ['👀', '看看窗外，休息眼睛'],
+  ['🚶', '起来走一走'],
+  ['🫁', '深呼吸三次'],
+  ['💦', '该喝水了'],
+  ['🌿', '活动一下筋骨'],
+  ['☕', '起来倒杯水'],
+  ['🌅', '看远处 20 秒'],
+  ['🧎', '换个姿势坐'],
 ];
 
-let sessionStart = null;
+let lastReminderTime = null;  // timestamp of last reminder (persisted)
+let healthTipIndex = 0;
 let healthTipInterval = null;
 let healthLog = [];
-let lastReminderTimes = {};
 
 function addHealthLog(icon, text) {
   const now = new Date();
   const t = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
-  healthLog.unshift({ time: t, icon, text });
+  healthLog.unshift({ id: Date.now().toString(), time: t, icon, text, done: false });
 }
 
 function updateHealthReminders() {
   const timerEl = document.getElementById('healthTimer');
   const tipEl = document.getElementById('healthTip');
   if (!timerEl || !tipEl) return;
-  if (!sessionStart) { timerEl.textContent = '0:00'; tipEl.textContent = ''; return; }
+  if (!lastReminderTime) { timerEl.textContent = '0:00'; tipEl.textContent = ''; return; }
 
-  const elapsed = Math.floor((Date.now() - sessionStart) / 1000);
+  const elapsed = Math.floor((Date.now() - lastReminderTime) / 1000);
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
 
   const blink = secs % 2 === 0 ? 'blink' : '';
   timerEl.innerHTML = `${mins}<span class="colon ${blink}">:</span>${String(secs).padStart(2, '0')}`;
 
-  // Check each reminder type — find the most urgent one due
-  let dueReminders = HEALTH_REMINDERS.filter(r => {
-    const last = lastReminderTimes[r.id] || 0;
-    return (mins - last) >= r.interval;
-  });
-
-  // If multiple are due, pick the one that's been waiting the longest
-  if (dueReminders.length > 0) {
-    dueReminders.sort((a, b) => {
-      const aWait = mins - (lastReminderTimes[a.id] || 0) - a.interval;
-      const bWait = mins - (lastReminderTimes[b.id] || 0) - b.interval;
-      return bWait - aWait;
-    });
-    const selected = dueReminders[0];
-    lastReminderTimes[selected.id] = mins;
-    tipEl.textContent = `${selected.icon} ${selected.text}`;
-    addHealthLog(selected.icon, selected.text);
+  // 30 minutes → fire next reminder
+  if (mins >= 30) {
+    const tip = HEALTH_TIPS[healthTipIndex % HEALTH_TIPS.length];
+    healthTipIndex++;
+    tipEl.textContent = `${tip[0]} ${tip[1]}`;
+    addHealthLog(tip[0], tip[1]);
+    lastReminderTime = Date.now();
+    chrome.storage.local.set({ healthLastReminder: lastReminderTime, healthTipIndex });
   } else if (tipEl.textContent === '') {
-    tipEl.textContent = '💧 今日已提醒';
+    const idle = ['✨ 活力满满', '💪 状态不错', '🌟 今天很棒', '☀️ 精神饱满', '🎯 专注中'];
+    tipEl.textContent = idle[Math.floor(Math.random() * idle.length)];
   }
 }
 
-// Click badge → toggle popup, click outside → close
+function renderHealthPopup() {
+  const list = document.getElementById('healthPopupList');
+  if (!list) return;
+  if (healthLog.length === 0) {
+    list.innerHTML = '<div class="health-popup-empty">暂无记录</div>';
+  } else {
+    list.innerHTML = healthLog.map(item =>
+      `<div class="health-popup-item${item.done ? ' done' : ''}">
+        <input type="checkbox" class="health-checkbox" data-log-id="${item.id}" ${item.done ? 'checked' : ''}>
+        <span class="health-popup-time">${item.time}</span>
+        <span>${item.icon} ${item.text}</span>
+      </div>`
+    ).join('');
+  }
+}
+
+// Click badge → toggle popup, checkbox toggle done, click outside → close
 document.addEventListener('click', (e) => {
   const popup = document.getElementById('healthPopup');
   if (!popup) return;
@@ -2127,40 +2142,36 @@ document.addEventListener('click', (e) => {
     return;
   }
 
+  // Checkbox toggle
+  const cb = e.target.closest('.health-checkbox');
+  if (cb) {
+    const logItem = healthLog.find(item => item.id === cb.dataset.logId);
+    if (logItem) logItem.done = cb.checked;
+    e.stopPropagation();
+    return;
+  }
+
   if (e.target.closest('.health-popup')) return;
 
   const isOpen = popup.style.display !== 'none';
   popup.style.display = isOpen ? 'none' : 'block';
 
-  if (!isOpen) {
-    const list = document.getElementById('healthPopupList');
-    if (list) {
-      if (healthLog.length === 0) {
-        list.innerHTML = '<div class="health-popup-empty">暂无记录</div>';
-      } else {
-        list.innerHTML = healthLog.map(item =>
-          `<div class="health-popup-item">
-            <span class="health-popup-time">${item.time}</span>
-            <span>${item.icon} ${item.text}</span>
-          </div>`
-        ).join('');
-      }
-    }
-  }
+  if (!isOpen) renderHealthPopup();
 });
 
-// Init session timer from storage (persists across tab refreshes)
+// Init health timer from storage (persists across refreshes, resets daily)
 (async function initHealthTimer() {
-  const { sessionStart: stored = null } = await chrome.storage.local.get('sessionStart');
+  const { healthLastReminder, healthTipIndex: storedIdx } = await chrome.storage.local.get(['healthLastReminder', 'healthTipIndex']);
   const now = Date.now();
   const today = new Date();
   const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime();
 
-  if (stored && stored >= todayStart) {
-    sessionStart = stored;
+  if (storedIdx) healthTipIndex = storedIdx;
+  if (healthLastReminder && healthLastReminder >= todayStart) {
+    lastReminderTime = healthLastReminder;
   } else {
-    sessionStart = now;
-    await chrome.storage.local.set({ sessionStart: now });
+    lastReminderTime = now;
+    await chrome.storage.local.set({ healthLastReminder: now, healthTipIndex });
   }
 
   updateHealthReminders();
