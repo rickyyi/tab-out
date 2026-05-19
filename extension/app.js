@@ -2158,33 +2158,28 @@ function updateClock() {
   const now = new Date();
   const h = String(now.getHours()).padStart(2, '0');
   const m = String(now.getMinutes()).padStart(2, '0');
-  el.textContent = `${h}:${m}`;
+  const s = String(now.getSeconds()).padStart(2, '0');
+  const blink = now.getSeconds() % 2 === 0 ? 'blink' : '';
+  el.innerHTML = `${h}<span class="colon ${blink}">:</span>${m}<span class="colon ${blink}">:</span>${s}`;
 }
 
 setInterval(updateClock, 1000);
 
 
 /* ----------------------------------------------------------------
-   HEALTH REMINDERS — session timer + wellness tips
+   HEALTH REMINDERS — timer + scheduled reminders
    ---------------------------------------------------------------- */
 
-const HEALTH_TIPS = [
-  ['💧', '喝口水吧'],
-  ['🧘', '站起来伸个懒腰'],
-  ['👀', '看看窗外，休息一下眼睛'],
-  ['🚶', '起来走一走，久坐伤身'],
-  ['🫁', '深呼吸三次，放空大脑'],
-  ['💦', '该喝水了！皮肤需要你'],
-  ['🌿', '站起来转转，促进循环'],
-  ['🧎', '换个姿势坐'],
-  ['☕', '起来倒杯水或茶'],
-  ['🌅', '看远处 20 秒，放松睫状肌'],
+const HEALTH_REMINDERS = [
+  { id: 'water',  icon: '💧', text: '喝口水吧',           interval: 30 },
+  { id: 'eye',    icon: '👀', text: '看看窗外，休息眼睛', interval: 20 },
+  { id: 'stretch',icon: '🧘', text: '站起来伸个懒腰',      interval: 45 },
 ];
 
 let sessionStart = null;
 let healthTipInterval = null;
 let healthLog = [];
-let lastTipIndex = -1;
+let lastReminderTimes = {};
 
 function addHealthLog(icon, text) {
   const now = new Date();
@@ -2202,14 +2197,28 @@ function updateHealthReminders() {
   const mins = Math.floor(elapsed / 60);
   const secs = elapsed % 60;
 
-  timerEl.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
+  const blink = secs % 2 === 0 ? 'blink' : '';
+  timerEl.innerHTML = `${mins}<span class="colon ${blink}">:</span>${String(secs).padStart(2, '0')}`;
 
-  const tipIndex = Math.min(Math.floor(mins / 15), HEALTH_TIPS.length - 1);
-  if (tipIndex !== lastTipIndex) {
-    lastTipIndex = tipIndex;
-    const tip = HEALTH_TIPS[tipIndex];
-    tipEl.textContent = `${tip[0]} ${tip[1]}`;
-    addHealthLog(tip[0], tip[1]);
+  // Check each reminder type — find the most urgent one due
+  let dueReminders = HEALTH_REMINDERS.filter(r => {
+    const last = lastReminderTimes[r.id] || 0;
+    return (mins - last) >= r.interval;
+  });
+
+  // If multiple are due, pick the one that's been waiting the longest
+  if (dueReminders.length > 0) {
+    dueReminders.sort((a, b) => {
+      const aWait = mins - (lastReminderTimes[a.id] || 0) - a.interval;
+      const bWait = mins - (lastReminderTimes[b.id] || 0) - b.interval;
+      return bWait - aWait;
+    });
+    const selected = dueReminders[0];
+    lastReminderTimes[selected.id] = mins;
+    tipEl.textContent = `${selected.icon} ${selected.text}`;
+    addHealthLog(selected.icon, selected.text);
+  } else if (tipEl.textContent === '') {
+    tipEl.textContent = '💧 今日已提醒';
   }
 }
 
@@ -2218,13 +2227,11 @@ document.addEventListener('click', (e) => {
   const popup = document.getElementById('healthPopup');
   if (!popup) return;
 
-  // Close on click outside
   if (!e.target.closest('#healthBadge')) {
     popup.style.display = 'none';
     return;
   }
 
-  // Click inside popup content — don't toggle
   if (e.target.closest('.health-popup')) return;
 
   const isOpen = popup.style.display !== 'none';

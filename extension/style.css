@@ -1235,6 +1235,10 @@ footer {
   transition: all 0.8s ease;
 }
 
+.clock .colon.blink {
+  opacity: 0;
+}
+
 
 /* ================================================================
    NIGHT MODE — 深夜陪伴模式 (23:00–05:00)
@@ -1583,6 +1587,10 @@ body.night-mode .health-popup {
   font-weight: 500;
   color: var(--accent-sage);
   letter-spacing: 0.5px;
+}
+
+.health-badge-timer .colon.blink {
+  opacity: 0;
 }
 
 .health-badge-tip {
