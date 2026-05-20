@@ -1868,6 +1868,10 @@ body.night-mode .health-badge-tip {
   top: 32px;
   max-height: calc(100vh - 64px);
   overflow-y: auto;
+  display: none;
+}
+.deferred-column.has-data {
+  display: block;
 }
 
 /* On narrow screens, stack vertically */

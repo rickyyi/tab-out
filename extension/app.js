@@ -1175,11 +1175,11 @@ async function renderDeferredColumn() {
 
     // Hide the entire column if there's nothing to show
     if (active.length === 0 && archived.length === 0) {
-      column.style.display = 'none';
+      column.classList.remove('has-data');
       return;
     }
 
-    column.style.display = 'block';
+    column.classList.add('has-data');
 
     // Render active checklist items
     if (active.length > 0) {
@@ -1204,7 +1204,7 @@ async function renderDeferredColumn() {
 
   } catch (err) {
     console.warn('[tab-out] Could not load saved tabs:', err);
-    column.style.display = 'none';
+    column.classList.remove('has-data');
   }
 }
 
@@ -2260,4 +2260,27 @@ document.addEventListener('click', (e) => {
 /* ----------------------------------------------------------------
    INITIALIZE
    ---------------------------------------------------------------- */
+// Prevent Chrome from restoring scroll position on rapid refresh
+history.scrollRestoration = 'manual';
+window.scrollTo(0, 0);
+
+// Cross-tab state sync — when another tab changes storage, update this tab's UI
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area !== 'local') return;
+
+  // Health reminders
+  if (changes.healthLastReminder) lastReminderTime = changes.healthLastReminder.newValue;
+  if (changes.healthTipIndex) healthTipIndex = changes.healthTipIndex.newValue;
+  if (changes.healthLog) healthLog = changes.healthLog.newValue;
+  if (changes.healthLastReminder || changes.healthTipIndex || changes.healthLog) {
+    updateHealthReminders();
+  }
+
+  // Saved tabs column
+  if (changes.deferred) renderDeferredColumn();
+
+  // Recently closed sidebar
+  if (changes.closedHistory) renderRecentlyClosedColumn();
+});
+
 renderDashboard();
