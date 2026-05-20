@@ -1376,6 +1376,19 @@ body.night-mode .search-bar {
   border-color: rgba(232, 226, 218, 0.08);
 }
 
+body.night-mode .engine-selector-btn:hover {
+  background: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .engine-dropdown {
+  background: #2a2420;
+  border-color: rgba(232, 226, 218, 0.08);
+}
+
+body.night-mode .engine-option:hover {
+  background: rgba(232, 226, 218, 0.08);
+}
+
 body.night-mode header {
   border-bottom-color: rgba(232, 226, 218, 0.08);
 }
@@ -2220,9 +2233,11 @@ body.night-mode .health-badge-tip {
   gap: 8px;
   background: var(--card-bg);
   border: 1px solid var(--warm-gray);
-  border-radius: 8px;
+  border-radius: 20px;
   padding: 8px 14px;
   margin-bottom: 24px;
+  position: relative;
+  z-index: 50;
   transition: border-color 0.2s, box-shadow 0.2s;
 }
 
@@ -2238,7 +2253,7 @@ body.night-mode .health-badge-tip {
   flex-shrink: 0;
 }
 
-#tabSearchInput {
+#webSearchInput {
   font-family: 'DM Sans', sans-serif;
   font-size: 14px;
   flex: 1;
@@ -2248,7 +2263,7 @@ body.night-mode .health-badge-tip {
   outline: none;
 }
 
-#tabSearchInput::placeholder {
+#webSearchInput::placeholder {
   color: var(--muted);
 }
 
@@ -2272,6 +2287,74 @@ body.night-mode .health-badge-tip {
 .search-clear svg {
   width: 14px;
   height: 14px;
+}
+
+/* ---- Engine Selector ---- */
+.engine-selector {
+  position: relative;
+  flex-shrink: 0;
+  z-index: 1;
+}
+
+.engine-selector-btn {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+
+.engine-selector-btn:hover {
+  background: var(--warm-gray);
+}
+
+.engine-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.engine-chevron {
+  color: var(--muted);
+}
+
+.engine-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: var(--card-bg);
+  border: 1px solid var(--warm-gray);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+  min-width: 110px;
+  z-index: 100;
+  overflow: hidden;
+}
+
+.engine-option {
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--ink);
+  transition: background 0.1s;
+}
+
+.engine-option:hover {
+  background: var(--warm-gray);
+}
+
+.engine-option.selected {
+  font-weight: 600;
 }
 
 .mission-card.search-hidden {

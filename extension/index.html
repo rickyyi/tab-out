@@ -86,13 +86,26 @@
   </div>
 
   <!-- ================================================================
-       SEARCH — filters open tabs in real time
+       SEARCH — web search with engine selector
        ================================================================ -->
   <div class="search-bar" id="searchBar">
     <svg class="search-icon" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
     </svg>
-    <input type="text" id="tabSearchInput" placeholder="Search open tabs..." autocomplete="off">
+    <div class="engine-selector" id="engineSelector">
+      <button class="engine-selector-btn" id="engineSelectorBtn" title="Switch search engine">
+        <span class="engine-icon" id="engineIcon">G</span>
+        <svg class="engine-chevron" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" width="10" height="10">
+          <path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+      <div class="engine-dropdown" id="engineDropdown" style="display:none">
+        <div class="engine-option" data-engine="google">Google</div>
+        <div class="engine-option" data-engine="bing">Bing</div>
+        <div class="engine-option" data-engine="baidu">百度</div>
+      </div>
+    </div>
+    <input type="text" id="webSearchInput" placeholder="搜索..." autocomplete="off">
     <button class="search-clear" id="searchClear" style="display:none" data-action="clear-search">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -113,7 +126,7 @@
       <div class="section-header">
         <h2 id="openTabsSectionTitle">Right now</h2>
         <div class="section-line"></div>
-        <input type="text" class="section-search" id="sectionSearchInput" placeholder="搜索..." autocomplete="off">
+        <input type="text" class="section-search" id="sectionSearchInput" placeholder="搜索Tab..." autocomplete="off">
         <div class="section-count" id="openTabsSectionCount"></div>
       </div>
       <div class="missions" id="openTabsMissions"></div>

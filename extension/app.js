@@ -1369,6 +1369,32 @@ function filterTabsBySearch(query) {
   return visibleCount;
 }
 
+/* ----------------------------------------------------------------
+   SEARCH ENGINE CONFIG
+   ---------------------------------------------------------------- */
+
+const SEARCH_ENGINES = {
+  google: { name: 'Google', url: 'https://www.google.com/search?q=', icon: 'G', color: '#4285F4' },
+  bing:   { name: 'Bing',   url: 'https://www.bing.com/search?q=',   icon: 'B', color: '#008373' },
+  baidu:  { name: '百度',  url: 'https://www.baidu.com/s?wd=',       icon: '度', color: '#2932E1' },
+};
+
+let currentEngine = localStorage.getItem('tabout_search_engine') || 'google';
+
+function switchEngine(engineKey) {
+  currentEngine = engineKey;
+  localStorage.setItem('tabout_search_engine', engineKey);
+  const eng = SEARCH_ENGINES[engineKey];
+  const iconEl = document.getElementById('engineIcon');
+  if (iconEl) {
+    iconEl.textContent = eng.icon;
+    iconEl.style.background = eng.color;
+  }
+  document.querySelectorAll('.engine-option').forEach(el => {
+    el.classList.toggle('selected', el.dataset.engine === engineKey);
+  });
+}
+
 
 /* ----------------------------------------------------------------
    MAIN DASHBOARD RENDERER
@@ -1848,7 +1874,7 @@ document.addEventListener('click', async (e) => {
 
   // ---- Clear search ----
   if (action === 'clear-search') {
-    const input = document.getElementById('tabSearchInput');
+    const input = document.getElementById('webSearchInput');
     if (input) { input.value = ''; input.dispatchEvent(new Event('input')); }
     return;
   }
@@ -1933,24 +1959,12 @@ document.addEventListener('input', async (e) => {
   }
 });
 
-// ---- Tab search — filter open tabs as user types ----
+// ---- Web search input — show/hide clear button ----
 document.addEventListener('input', (e) => {
-  if (e.target.id !== 'tabSearchInput') return;
-
+  if (e.target.id !== 'webSearchInput') return;
   const q = e.target.value;
   const clearBtn = document.getElementById('searchClear');
-  const sectionSearch = document.getElementById('sectionSearchInput');
-
-  // Show/hide clear button
-  if (clearBtn) {
-    clearBtn.style.display = q.length > 0 ? 'flex' : 'none';
-  }
-
-  // Sync section search
-  if (sectionSearch) sectionSearch.value = q;
-
-  currentSearchQuery = q;
-  filterTabsBySearch(q);
+  if (clearBtn) clearBtn.style.display = q.length > 0 ? 'flex' : 'none';
 });
 
 
@@ -2312,24 +2326,46 @@ chrome.storage.onChanged.addListener((changes, area) => {
 });
 
 
-// Section search: sync to tab search input
+// Section search: filter tabs
 document.getElementById('sectionSearchInput')?.addEventListener('input', (e) => {
-  const q = e.target.value;
-  const tabSearch = document.getElementById('tabSearchInput');
-  const clearBtn = document.getElementById('searchClear');
-  if (tabSearch) { tabSearch.value = q; }
-  if (clearBtn) { clearBtn.style.display = q.length > 0 ? 'flex' : 'none'; }
-  currentSearchQuery = q;
-  filterTabsBySearch(q);
+  currentSearchQuery = e.target.value;
+  filterTabsBySearch(currentSearchQuery);
 });
 
-// Web search: Enter → Google search in new tab
+// Web search: Enter → search with selected engine
 document.getElementById('webSearchInput')?.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   const q = e.target.value.trim();
   if (!q) return;
-  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+  const engine = SEARCH_ENGINES[currentEngine];
+  window.open(engine.url + encodeURIComponent(q), '_blank');
   e.target.value = '';
 });
+
+// ---- Engine selector dropdown ----
+const engineBtn = document.getElementById('engineSelectorBtn');
+const engineDropdown = document.getElementById('engineDropdown');
+
+if (engineBtn && engineDropdown) {
+  engineBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    engineDropdown.style.display = engineDropdown.style.display === 'block' ? 'none' : 'block';
+  });
+
+  document.querySelectorAll('.engine-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+      switchEngine(opt.dataset.engine);
+      engineDropdown.style.display = 'none';
+      document.getElementById('webSearchInput')?.focus();
+    });
+  });
+
+  document.addEventListener('click', () => {
+    engineDropdown.style.display = 'none';
+  });
+}
+
+// Init engine selector
+switchEngine(currentEngine);
 
 renderDashboard();
