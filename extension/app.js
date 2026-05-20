@@ -2111,7 +2111,31 @@ function updateClock() {
   el.innerHTML = `${h}<span class="colon ${blink}">:</span>${m}<span class="colon ${blink}">:</span>${s}`;
 }
 
+function updateWorkProgress() {
+  const fill = document.getElementById('workProgressFill');
+  const label = document.getElementById('workProgressLabel');
+  if (!fill || !label) return;
+
+  const now = new Date();
+  const mins = now.getHours() * 60 + now.getMinutes();
+
+  const START = 9 * 60 + 30;  // 9:30
+  const END   = 18 * 60 + 30; // 18:30
+  const TOTAL = END - START;
+
+  let progress;
+  if (mins < START)      progress = 0;
+  else if (mins > END)   progress = 1;
+  else                   progress = (mins - START) / TOTAL;
+
+  const pct = Math.round(progress * 100);
+  fill.style.width = `${pct}%`;
+  label.textContent = `${pct}%`;
+}
+
 setInterval(updateClock, 1000);
+setInterval(updateWorkProgress, 10000);
+updateWorkProgress();
 
 
 /* ----------------------------------------------------------------

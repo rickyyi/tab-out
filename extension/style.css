@@ -1218,8 +1218,41 @@ footer {
 /* ---- Clock ---- */
 .header-right {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.work-progress {
+  display: flex;
   align-items: center;
   gap: 8px;
+  height: 14px;
+  align-self: stretch;
+}
+
+.work-progress-track {
+  flex: 1;
+  height: 2px;
+  background: var(--warm-gray);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.work-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--accent-sage);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+.work-progress-label {
+  font-size: 11px;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--muted);
+  white-space: nowrap;
+  line-height: 1;
 }
 
 .clock {
@@ -1264,6 +1297,18 @@ body.night-mode .clock {
   color: #e8a040;
   text-shadow: 0 0 20px rgba(232, 160, 64, 0.15);
   letter-spacing: 4px;
+}
+
+body.night-mode .work-progress-track {
+  background: rgba(232, 226, 218, 0.12);
+}
+
+body.night-mode .work-progress-fill {
+  background: #8aaa92;
+}
+
+body.night-mode .work-progress-label {
+  color: #a09080;
 }
 
 body.night-mode .date-gregorian,
