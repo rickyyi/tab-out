@@ -546,7 +546,7 @@ function timeAgo(dateStr) {
 
   if (diffMins < 1)   return 'just now';
   if (diffMins < 60)  return diffMins + ' min ago';
-  if (diffHours < 24) return diffHours + ' hr' + (diffHours !== 1 ? 's' : '') + ' ago';
+  if (diffHours < 24) return diffHours + ' hour' + (diffHours !== 1 ? 's' : '') + ' ago';
   if (diffDays === 1) return 'yesterday';
   return diffDays + ' days ago';
 }
@@ -1939,11 +1939,15 @@ document.addEventListener('input', (e) => {
 
   const q = e.target.value;
   const clearBtn = document.getElementById('searchClear');
+  const sectionSearch = document.getElementById('sectionSearchInput');
 
   // Show/hide clear button
   if (clearBtn) {
     clearBtn.style.display = q.length > 0 ? 'flex' : 'none';
   }
+
+  // Sync section search
+  if (sectionSearch) sectionSearch.value = q;
 
   currentSearchQuery = q;
   filterTabsBySearch(q);
@@ -2305,6 +2309,27 @@ chrome.storage.onChanged.addListener((changes, area) => {
 
   // Recently closed sidebar
   if (changes.closedHistory) renderRecentlyClosedColumn();
+});
+
+
+// Section search: sync to tab search input
+document.getElementById('sectionSearchInput')?.addEventListener('input', (e) => {
+  const q = e.target.value;
+  const tabSearch = document.getElementById('tabSearchInput');
+  const clearBtn = document.getElementById('searchClear');
+  if (tabSearch) { tabSearch.value = q; }
+  if (clearBtn) { clearBtn.style.display = q.length > 0 ? 'flex' : 'none'; }
+  currentSearchQuery = q;
+  filterTabsBySearch(q);
+});
+
+// Web search: Enter → Google search in new tab
+document.getElementById('webSearchInput')?.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter') return;
+  const q = e.target.value.trim();
+  if (!q) return;
+  window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+  e.target.value = '';
 });
 
 renderDashboard();
