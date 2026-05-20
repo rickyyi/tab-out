@@ -1577,6 +1577,98 @@ async function renderDashboard() {
   if (currentSearchQuery) filterTabsBySearch(currentSearchQuery);
 }
 
+/* ----------------------------------------------------------------
+   BOOKMARKS
+   ---------------------------------------------------------------- */
+
+async function renderBookmarks() {
+  const bookmarksEl = document.getElementById('bookmarksMissions');
+  const countEl = document.getElementById('bookmarksSectionCount');
+  if (!bookmarksEl) return;
+
+  // Walk the bookmark tree, collecting folders with their bookmarks
+  const tree = await chrome.bookmarks.getTree();
+  const folders = [];
+
+  function walk(nodes) {
+    for (const node of nodes) {
+      if (!node.children) continue;
+      // Collect URL children of this folder
+      const bms = node.children.filter(c => c.url);
+      if (bms.length > 0 && node.title) {
+        folders.push({
+          title: node.title,
+          bookmarks: bms.map(c => ({ title: c.title || c.url, url: c.url, dateAdded: c.dateAdded })),
+        });
+      }
+      // Recurse into sub-folders
+      walk(node.children);
+    }
+  }
+  walk(tree);
+
+  const totalBookmarks = folders.reduce((s, f) => s + f.bookmarks.length, 0);
+
+  // Update the banner with bookmark stats
+  const banner = document.getElementById('tabOutDupeBanner');
+  const bannerIcon = banner?.querySelector('.tab-cleanup-icon');
+  const bannerText = banner?.querySelector('.tab-cleanup-text');
+  const bannerBtn = banner?.querySelector('.tab-cleanup-btn');
+  if (banner) {
+    // Save original banner content on first call
+    if (!banner.dataset.origHtml) {
+      banner.dataset.origHtml = bannerIcon.innerHTML;
+      banner.dataset.origText = bannerText.innerHTML;
+    }
+    bannerIcon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" /></svg>`;
+    bannerText.textContent = `${totalBookmarks} bookmarks in ${folders.length} folder${folders.length !== 1 ? 's' : ''}`;
+    bannerBtn.style.display = 'none';
+    banner.style.display = 'flex';
+  }
+
+  if (folders.length > 0) {
+    countEl.innerHTML = `${folders.length} folder${folders.length !== 1 ? 's' : ''}`;
+    bookmarksEl.innerHTML = folders.map(g => renderBookmarkCard(g)).join('');
+    bookmarksEl.parentElement.style.display = 'block';
+  } else {
+    bookmarksEl.parentElement.style.display = 'none';
+  }
+}
+
+function renderBookmarkBmChip(bm) {
+  const label = bm.title;
+  const safeUrl = bm.url.replace(/"/g, '&quot;');
+  const safeTitle = label.replace(/"/g, '&quot;');
+  let domain = '';
+  try { domain = new URL(bm.url).hostname; } catch {}
+  const faviconUrl = domain ? getFaviconSrc(domain) : '';
+  return `<div class="page-chip clickable" data-action="open-bookmark" data-bm-url="${safeUrl}" title="${safeTitle}">
+    ${faviconUrl ? `<img class="chip-favicon" src="${faviconUrl}" alt="" data-domain="${domain}" onerror="this.style.display='none'">` : ''}
+    <span class="chip-text">${label}</span>
+  </div>`;
+}
+
+function renderBookmarkCard(folder) {
+  const bms = folder.bookmarks || [];
+  const pageChips = bms.map(bm => renderBookmarkBmChip(bm)).join('');
+
+  return `
+    <div class="mission-card domain-card has-neutral-bar">
+      <div class="status-bar"></div>
+      <div class="mission-content">
+        <div class="mission-top">
+          <span class="mission-name">${folder.title}</span>
+          <span class="open-tabs-badge">${bms.length} saved</span>
+        </div>
+        <div class="mission-pages">${pageChips}</div>
+      </div>
+      <div class="mission-meta">
+        <div class="mission-page-count">${bms.length}</div>
+        <div class="mission-page-label">bookmarks</div>
+      </div>
+    </div>`;
+}
+
 
 /* ----------------------------------------------------------------
    EVENT HANDLERS — using event delegation
@@ -1623,6 +1715,13 @@ document.addEventListener('click', async (e) => {
   if (action === 'focus-tab') {
     const tabUrl = actionEl.dataset.tabUrl;
     if (tabUrl) await focusTab(tabUrl);
+    return;
+  }
+
+  // ---- Open a bookmark ----
+  if (action === 'open-bookmark') {
+    const bmUrl = actionEl.dataset.bmUrl;
+    if (bmUrl) window.open(bmUrl, '_blank');
     return;
   }
 
@@ -2368,4 +2467,49 @@ if (engineBtn && engineDropdown) {
 // Init engine selector
 switchEngine(currentEngine);
 
-renderDashboard();
+// ---- View toggle: Tabs / Bookmarks ----
+let currentView = 'tabs';
+
+document.getElementById('viewToggle')?.addEventListener('click', (e) => {
+  const btn = e.target.closest('.view-toggle-btn');
+  if (!btn) return;
+  const view = btn.dataset.view;
+  if (view === currentView) return;
+
+  currentView = view;
+  document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+
+  const tabsSection = document.getElementById('openTabsSection');
+  const bookmarksSection = document.getElementById('bookmarksSection');
+  const searchBar = document.getElementById('searchBar');
+
+  if (view === 'tabs') {
+    tabsSection.style.display = 'block';
+    bookmarksSection.style.display = 'none';
+    searchBar.style.display = '';
+    // Re-trigger fade-up animations
+    tabsSection.classList.remove('animate');
+    void tabsSection.offsetHeight;
+    tabsSection.classList.add('animate');
+    // Restore normal dupe banner
+    const banner = document.getElementById('tabOutDupeBanner');
+    if (banner && banner.dataset.origHtml) {
+      const iconEl = banner.querySelector('.tab-cleanup-icon');
+      const textEl = banner.querySelector('.tab-cleanup-text');
+      const btnEl = banner.querySelector('.tab-cleanup-btn');
+      if (iconEl) iconEl.innerHTML = banner.dataset.origHtml;
+      if (textEl) textEl.innerHTML = banner.dataset.origText;
+      if (btnEl) btnEl.style.display = '';
+    }
+    checkTabOutDupes();
+  } else {
+    tabsSection.style.display = 'none';
+    bookmarksSection.style.display = 'block';
+    searchBar.style.display = 'none';
+    renderBookmarks();
+  }
+});
+
+renderDashboard().then(() => {
+  document.getElementById('openTabsSection')?.classList.add('animate');
+});

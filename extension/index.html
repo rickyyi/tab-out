@@ -68,6 +68,15 @@
   </header>
 
   <!-- ================================================================
+       VIEW TOGGLE — Tabs / Bookmarks
+       ================================================================ -->
+  <div class="view-toggle" id="viewToggle">
+    <span class="view-toggle-btn active" data-view="tabs">Tabs</span>
+    <span class="view-toggle-sep">/</span>
+    <span class="view-toggle-btn" data-view="bookmarks">Bookmarks</span>
+  </div>
+
+  <!-- ================================================================
        TAB OUT DUPES BANNER — appears when you have extra Tab Out tabs open
        Hidden by default; app.js shows it when dupeTabOutCount > 1
        ================================================================ -->
@@ -130,6 +139,16 @@
         <div class="section-count" id="openTabsSectionCount"></div>
       </div>
       <div class="missions" id="openTabsMissions"></div>
+    </div>
+
+    <!-- LEFT COLUMN: Bookmarks -->
+    <div class="active-section" id="bookmarksSection" style="display:none">
+      <div class="section-header">
+        <h2 id="bookmarksSectionTitle">Bookmarks</h2>
+        <div class="section-line"></div>
+        <div class="section-count" id="bookmarksSectionCount"></div>
+      </div>
+      <div class="missions" id="bookmarksMissions"></div>
     </div>
 
     <!-- RIGHT COLUMN: Saved for Later checklist -->

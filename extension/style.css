@@ -290,8 +290,8 @@ header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 48px;
-  padding-bottom: 24px;
+  margin-bottom: 20px;
+  padding-bottom: 20px;
   border-bottom: 1px solid var(--warm-gray);
 }
 
@@ -1544,10 +1544,8 @@ header { animation: fadeUp 0.5s ease both; }
 .nudge-banner { animation: fadeUp 0.5s ease 0.15s both; }
 .search-bar { animation: fadeUp 0.5s ease 0.18s both; }
 .active-section .section-header { animation: fadeUp 0.5s ease 0.2s both; }
-.active-section .missions .mission-card:nth-child(1) { animation: fadeUp 0.4s ease 0.25s both; }
-.active-section .missions .mission-card:nth-child(2) { animation: fadeUp 0.4s ease 0.3s both; }
-.active-section .missions .mission-card:nth-child(3) { animation: fadeUp 0.4s ease 0.35s both; }
-.active-section .missions .mission-card:nth-child(4) { animation: fadeUp 0.4s ease 0.4s both; }
+#openTabsSection.animate .mission-card,
+#bookmarksSection .mission-card { animation: fadeUp 0.4s ease 0.15s both; }
 .abandoned-section .section-header { animation: fadeUp 0.5s ease 0.45s both; }
 .abandoned-section .missions .mission-card:nth-child(1) { animation: fadeUp 0.4s ease 0.5s both; }
 .abandoned-section .missions .mission-card:nth-child(2) { animation: fadeUp 0.4s ease 0.55s both; }
@@ -1560,6 +1558,7 @@ footer { animation: fadeUp 0.5s ease 0.65s both; }
 .deferred-list .deferred-item:nth-child(4) { animation-delay: 0.2s; }
 .deferred-list .deferred-item:nth-child(5) { animation-delay: 0.25s; }
 .deferred-column .section-header { animation: fadeUp 0.5s ease 0.1s both; }
+
 
 
 /* ================================================================
@@ -2220,6 +2219,58 @@ body.night-mode .health-badge-tip {
   color: var(--muted);
   opacity: 0.6;
   flex-shrink: 0;
+}
+
+
+/* ================================================================
+   VIEW TOGGLE — Tabs / Bookmarks
+   ================================================================ */
+
+.view-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+.view-toggle-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+  border: none;
+  cursor: pointer;
+  background: none;
+  color: var(--muted);
+  transition: color 0.15s;
+  padding: 0;
+}
+
+.view-toggle-btn.active {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.view-toggle-btn:hover:not(.active) {
+  color: var(--ink);
+}
+
+.view-toggle-sep {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 300;
+}
+
+body.night-mode .view-toggle-btn.active {
+  color: #d8c8b8;
+}
+
+body.night-mode .view-toggle-btn:hover:not(.active) {
+  color: #d8c8b8;
+}
+
+body.night-mode .view-toggle-sep {
+  color: #706050;
 }
 
 
