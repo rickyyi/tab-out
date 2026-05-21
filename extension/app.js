@@ -1377,6 +1377,7 @@ const SEARCH_ENGINES = {
   google: { name: 'Google', url: 'https://www.google.com/search?q=', icon: 'G', color: '#4285F4' },
   bing:   { name: 'Bing',   url: 'https://www.bing.com/search?q=',   icon: 'B', color: '#008373' },
   baidu:  { name: '百度',  url: 'https://www.baidu.com/s?wd=',       icon: '度', color: '#2932E1' },
+  xhsc:   { name: '小红书', url: 'https://www.xiaohongshu.com/search_result?keyword=%s&source=web_explore_feed', icon: '红', color: '#FF2442' },
 };
 
 let currentEngine = localStorage.getItem('tabout_search_engine') || 'google';
@@ -2437,7 +2438,8 @@ document.getElementById('webSearchInput')?.addEventListener('keydown', (e) => {
   const q = e.target.value.trim();
   if (!q) return;
   const engine = SEARCH_ENGINES[currentEngine];
-  window.open(engine.url + encodeURIComponent(q), '_blank');
+  const searchUrl = engine.url.includes('%s') ? engine.url.replace('%s', encodeURIComponent(q)) : engine.url + encodeURIComponent(q);
+  window.open(searchUrl, '_blank');
   e.target.value = '';
 });
 
@@ -2486,7 +2488,6 @@ document.getElementById('viewToggle')?.addEventListener('click', (e) => {
   if (view === 'tabs') {
     tabsSection.style.display = 'block';
     bookmarksSection.style.display = 'none';
-    searchBar.style.display = '';
     // Re-trigger fade-up animations
     tabsSection.classList.remove('animate');
     void tabsSection.offsetHeight;
@@ -2505,7 +2506,6 @@ document.getElementById('viewToggle')?.addEventListener('click', (e) => {
   } else {
     tabsSection.style.display = 'none';
     bookmarksSection.style.display = 'block';
-    searchBar.style.display = 'none';
     renderBookmarks();
   }
 });
