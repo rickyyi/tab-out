@@ -14,18 +14,6 @@
 </head>
 <body>
 
-<!-- Pixel crab mascot — top left corner -->
-<div class="pixel-crab" id="pixelCrab" title="Tab Out">
-  <div class="crab-inner">
-    <div class="crab-body"></div>
-    <div class="crab-claw crab-claw-left"></div>
-    <div class="crab-claw crab-claw-right"></div>
-    <div class="crab-eye crab-eye-left"></div>
-    <div class="crab-eye crab-eye-right"></div>
-    <div class="crab-bubble" id="crabBubble"></div>
-  </div>
-</div>
-
 <!-- Floating calendar popup -->
 <div class="calendar-popup" id="calendarPopup" style="display:none">
   <div class="calendar-head">
@@ -219,6 +207,11 @@
 
 <!-- Health reminders — bottom right corner -->
 <div class="health-badge" id="healthBadge">
+  <!-- Lottie mascot — walks along top border -->
+  <div class="mascot" id="mascot" title="Tab Out">
+    <div class="mascot-animation" id="mascotAnimation"></div>
+    <div class="mascot-bubble" id="mascotBubble"></div>
+  </div>
   <span class="health-badge-timer" id="healthTimer"></span>
   <span class="health-badge-tip" id="healthTip"></span>
   <div class="health-popup" id="healthPopup" style="display:none">
@@ -244,6 +237,9 @@
 <!-- Personal config (gitignored) — defines LOCAL_LANDING_PAGE_PATTERNS etc. -->
 <!-- If the file doesn't exist, that's fine — app.js uses sensible defaults. -->
 <script src="config.local.js" onerror="/* no personal config, that's fine */"></script>
+
+<!-- Lottie Web player -->
+<script src="lottie.min.js"></script>
 
 <!-- Main dashboard logic — loads last so the DOM is ready -->
 <script src="app.js"></script>

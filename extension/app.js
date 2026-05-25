@@ -2149,7 +2149,7 @@ document.addEventListener('click', async (e) => {
     const isOpen = popup.style.display !== 'none';
     popup.style.display = isOpen ? 'none' : 'block';
     if (!isOpen) {
-      const rect = document.getElementById('pixelCrab').getBoundingClientRect();
+      const rect = document.getElementById('dateDisplay').getBoundingClientRect();
       popup.style.left = rect.left + 'px';
       popup.style.top = (rect.bottom + 8) + 'px';
       calYear = new Date().getFullYear();
@@ -2232,10 +2232,10 @@ document.addEventListener('input', (e) => {
 
 
 /* ----------------------------------------------------------------
-   CRAB CLICK INTERACTION
+   MASCOT CLICK INTERACTION
    ---------------------------------------------------------------- */
 
-const CRAB_PHRASES = [
+const MASCOT_PHRASES = [
   'Tab Out! 🦀',
   '标签清清清~',
   'Ctrl+W 快捷关标签',
@@ -2253,37 +2253,52 @@ const CRAB_PHRASES = [
   '摸我一下',
 ];
 
-function triggerCrabBubble() {
-  const crabEl = document.getElementById('pixelCrab');
-  const inner = crabEl ? crabEl.querySelector('.crab-inner') : null;
-  const bubble = document.getElementById('crabBubble');
-  if (!inner || !bubble) return;
+function triggerMascotBubble() {
+  const bubble = document.getElementById('mascotBubble');
+  if (!bubble) return;
 
-  const phrase = CRAB_PHRASES[Math.floor(Math.random() * CRAB_PHRASES.length)];
+  const phrase = MASCOT_PHRASES[Math.floor(Math.random() * MASCOT_PHRASES.length)];
   bubble.textContent = phrase;
   bubble.classList.add('visible');
-
-  inner.classList.remove('crab-bounce');
-  void inner.offsetWidth;
-  inner.classList.add('crab-bounce');
 
   setTimeout(() => {
     bubble.classList.remove('visible');
   }, 2500);
 }
 
-const crabEl = document.getElementById('pixelCrab');
-if (crabEl) {
+/* ---- Lottie animation init ---- */
+const animContainer = document.getElementById('mascotAnimation');
+let lottieAnim = null;
+if (animContainer && typeof lottie !== 'undefined') {
+  lottieAnim = lottie.loadAnimation({
+    container: animContainer,
+    renderer: 'svg',
+    loop: true,
+    autoplay: true,
+    path: 'crab_walk.json',
+  });
+}
+
+const mascotEl = document.getElementById('mascot');
+if (mascotEl) {
   // Manual click
-  crabEl.addEventListener('click', () => {
-    triggerCrabBubble();
+  mascotEl.addEventListener('click', () => {
+    triggerMascotBubble();
+    // Play a bounce on the lottie container
+    if (animContainer) {
+      animContainer.style.transform = 'scale(0.85) rotate(-8deg)';
+      animContainer.style.transition = 'transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1)';
+      setTimeout(() => {
+        animContainer.style.transform = 'scale(1) rotate(0deg)';
+      }, 150);
+    }
   });
 
   // Auto bubble every 15–30 seconds
   function scheduleAutoBubble() {
     const delay = 15000 + Math.random() * 15000;
     setTimeout(() => {
-      triggerCrabBubble();
+      triggerMascotBubble();
       scheduleAutoBubble();
     }, delay);
   }
