@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>色彩守护者 - Cocos2d-JS小游戏</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #111;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', 'Poppins', 'Microsoft YaHei', sans-serif;
+            touch-action: none;  /* 优化触控操作 */
+        }
+        canvas {
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border-radius: 12px;
+            display: block;
+            margin: 0 auto;
+            cursor: none; /* 隐藏默认鼠标，更沉浸 */
+        }
+        .info-text {
+            position: fixed;
+            bottom: 15px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 14px;
+            color: rgba(255,255,255,0.6);
+            background: rgba(0,0,0,0.5);
+            padding: 5px;
+            pointer-events: none;
+            font-weight: 500;
+            z-index: 10;
+        }
+        @media (max-width: 600px) {
+            .info-text { font-size: 10px; bottom: 8px; }
+        }
+    </style>
+</head>
+<body>
+<div class="info-text">✨ 鼠标/手指移动 → 控制滑板 | 接住彩色球 +10分 | 漏掉 -1生命 ✨</div>
+
+<script src="https://cdn.jsdelivr.net/npm/cocos2d@3.4.0/cocos2d-js.min.js"></script>
+<script>
+    (function() {
+        // 游戏设计尺寸 (宽x高)
+        const DESIGN_WIDTH = 480;
+        const DESIGN_HEIGHT = 800;
+        
+        // 游戏参数配置
+        const PLAYER_WIDTH = 80;
+        const PLAYER_HEIGHT = 24;
+        const PLAYER_COLOR = "#3a86ff";     // 亮蓝滑板
+        const BALL_RADIUS = 18;              // 球半径
+        const BALL_COLOR = "#ff006e";        // 亮粉色/红色系
+        const BALL_SPEED = 220;              // 下落速度 像素/秒
+        const BASE_SPAWN_INTERVAL = 1.1;     // 初始生成间隔(秒)
+        const MIN_SPAWN_INTERVAL = 0.55;     // 最快生成间隔
+        
+        // 游戏状态变量
+        let score = 0;
+        let lives = 3;
+        let gameOverFlag = false;
+        let ballsArray = [];          // 存储小球节点
+        let player = null;            // 玩家精灵
+        let scoreLabel = null;
+        let livesLabel = null;
+        let gameOverLabel = null;
+        let spawnScheduleId = null;    // 生成小球的调度ID
+        let gameLayer = null;          // 主层引用
+        
+        // 辅助函数: 动态生成带颜色的纹理 (矩形/圆形 基于Canvas)
+        function createColoredTexture(width, height, color, isCircle = false) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            if (isCircle) {
+                // 绘制圆形 (带柔和边缘和高光)
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = Math.min(width, height) / 2;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+                ctx.fillStyle = color;
+                ctx.fill();
+                // 添加简单高光效果
+                ctx.beginPath();
+                ctx.arc(centerX - 3, centerY - 3, radius * 0.2, 0, Math.PI * 2);
+                ctx.fillStyle = "rgba(255,255,255,0.5)";
+                ctx.fill();
+                // 边缘描边
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, radius - 1, 0, Math.PI * 2);
+                ctx.strokeStyle = "rgba(0,0,0,0.2)";
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            } else {
+                // 矩形: 圆角矩形滑板风格
+                const radiusRect = 10;
+                ctx.fillStyle = color;
+                ctx.shadowBlur = 0;
+                ctx.beginPath();
+                ctx.moveTo(radiusRect, 0);
+                ctx.lineTo(width - radiusRect, 0);
+                ctx.quadraticCurveTo(width, 0, width, radiusRect);
+                ctx.lineTo(width, height - radiusRect);
+                ctx.quadraticCurveTo(width, height, width - radiusRect, height);
+                ctx.lineTo(radiusRect, height);
+                ctx.quadraticCurveTo(0, height, 0, height - radiusRect);
+                ctx.lineTo(0, radiusRect);
+                ctx.quadraticCurveTo(0, 0, radiusRect, 0);
+                ctx.closePath();
+                ctx.fill();
+                // 加内发光效果
+                ctx.strokeStyle = "rgba(255,255,255,0.4)";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+            
+            const texture = new cc.Texture2D();
+            texture.initWithElement(canvas);
+            texture.handleLoadedTexture();
+            const spriteFrame = new cc.SpriteFrame(texture, cc.rect(0, 0, width, height));
+            return spriteFrame;
+        }
+        
+        // 创建玩家精灵
+        function createPlayer() {
+            const spriteFrame = createColoredTexture(PLAYER_WIDTH, PLAYER_HEIGHT, PLAYER_COLOR, false);
+            const playerSprite = new cc.Sprite(spriteFrame);
+            // 添加一点光晕感
+            return playerSprite;
+        }
+        
+        // 创建小球精灵 (圆形)
+        function createBall() {
+            const size = BALL_RADIUS * 2;
+            const spriteFrame = createColoredTexture(size, size, BALL_COLOR, true);
+            const ball = new cc.Sprite(spriteFrame);
+            return ball;
+        }
+        
+        // 更新UI分数 & 生命显示
+        function updateUI() {
+            if (scoreLabel) {
+                scoreLabel.setString(`得分: ${score}`);
+            }
+            if (livesLabel) {
+                let heartStr = "❤️".repeat(lives) + "🖤".repeat(3 - lives);
+                livesLabel.setString(`生命: ${heartStr}`);
+                if (lives <= 0) {
+                    livesLabel.setString(`生命: 💀 无`);
+                }
+            }
+        }
+        
+        // 游戏结束逻辑
+        function endGame() {
+            if (gameOverFlag) return;
+            gameOverFlag = true;
+            
+            // 停止生成小球
+            if (spawnScheduleId) {
+                gameLayer.unschedule(spawnScheduleId);
+                spawnScheduleId = null;
+            }
+            
+            // 显示游戏结束文字层
+            if (!gameOverLabel) {
+                gameOverLabel = new cc.LabelTTF("游戏结束\n点击屏幕重新开始", "Arial", 32);
+                gameOverLabel.setColor(cc.color(255, 100, 100));
+                gameOverLabel.setPosition(DESIGN_WIDTH / 2, DESIGN_HEIGHT / 2);
+                gameOverLabel.setTextAlign(cc.TEXT_ALIGNMENT_CENTER);
+                // 添加半透明背景框更美观
+                const bgLayer = new cc.LayerColor(cc.color(0, 0, 0, 180));
+                bgLayer.setPosition(0, 0);
+                bgLayer.setContentSize(DESIGN_WIDTH, DESIGN_HEIGHT);
+                gameOverLabel.parentLayer = bgLayer;
+                bgLayer.addChild(gameOverLabel);
+                gameLayer.addChild(bgLayer, 100, "gameOverPanel");
+            } else {
+                gameOverLabel.setVisible(true);
+                gameOverLabel.getParent().setVisible(true);
+            }
+            
+            // 取消更新碰撞（但update还是会继续检测，但gameOverFlag会跳过逻辑）
+        }
+        
+        // 重置游戏全部状态
+        function resetGame() {
+            // 清除所有现存小球
+            for (let i = ballsArray.length - 1; i >= 0; i--) {
+                const ball = ballsArray[i];
+                if (ball && ball.parent) {
+                    ball.removeFromParent();
+                }
+            }
+            ballsArray = [];
+            
+            // 重置变量
+            score = 0;
+            lives = 3;
+            gameOverFlag = false;
+            
+            // 更新UI
+            updateUI();
+            
+            // 隐藏Game Over面板
+            if (gameOverLabel) {
+                const panel = gameOverLabel.getParent();
+                if (panel) panel.setVisible(false);
+                gameOverLabel.setVisible(false);
+            }
+            
+            // 重新启动生成小球 (先停止旧的调度防止重复)
+            if (spawnScheduleId) {
+                gameLayer.unschedule(spawnScheduleId);
+                spawnScheduleId = null;
+            }
+            // 动态计算生成间隔 (根据分数动态调整会在生成器里做, 重置后再调度)
+            scheduleSpawn();
+            
+            // 确保玩家位置居中 (重置位置)
+            if (player) {
+                player.setPosition(DESIGN_WIDTH / 2, 70);
+            }
+            
+            // 如果之前因为gameOver暂停了update，现在恢复正常（update一直在运行，靠标志位跳过）
+        }
+        
+        // 动态生成小球 (带难度曲线：分数越高生成越快)
+        function spawnBall() {
+            if (gameOverFlag) return;
+            
+            const ball = createBall();
+            const randX = Math.random() * (DESIGN_WIDTH - BALL_RADIUS * 2) + BALL_RADIUS;
+            // 初始Y设置在顶部附近 (高于屏幕)
+            const startY = DESIGN_HEIGHT - BALL_RADIUS - 5;
+            ball.setPosition(randX, startY);
+            gameLayer.addChild(ball, 5);
+            
+            // 存储小球对象以及自定义数据 (速度矢量)
+            ball.userData = {
+                velocityY: -BALL_SPEED,
+                radius: BALL_RADIUS
+            };
+            ballsArray.push(ball);
+            
+            // 动态调整后续生成速度: 分数越高, 间隔越小, 但有限制
+            if (spawnScheduleId && !gameOverFlag) {
+                // 重新调整生成间隔 (每次生成后重新设定下次调度的间隔)
+                gameLayer.unschedule(spawnScheduleId);
+                let newInterval = BASE_SPAWN_INTERVAL - Math.floor(score / 300) * 0.07;
+                newInterval = Math.max(MIN_SPAWN_INTERVAL, newInterval);
+                // 重新安排
+                spawnScheduleId = gameLayer.schedule(function() {
+                    spawnBall();
+                }, newInterval);
+            }
+        }
+        
+        // 初始化调度生成(根据当前分数调整初始间隔)
+        function scheduleSpawn() {
+            if (spawnScheduleId) {
+                gameLayer.unschedule(spawnScheduleId);
+            }
+            let initInterval = BASE_SPAWN_INTERVAL;
+            if (score > 0) {
+                initInterval = Math.max(MIN_SPAWN_INTERVAL, BASE_SPAWN_INTERVAL - Math.floor(score / 300) * 0.07);
+            }
+            spawnScheduleId = gameLayer.schedule(function() {
+                spawnBall();
+            }, initInterval);
+        }
+        
+        // 碰撞检测: 矩形(玩家) 与 圆形(小球) 的精确碰撞
+        function collideRectCircle(rectLeft, rectBottom, rectRight, rectTop, circleCenterX, circleCenterY, radius) {
+            // 找到矩形上离圆心最近的点
+            const closestX = Math.max(rectLeft, Math.min(circleCenterX, rectRight));
+            const closestY = Math.max(rectBottom, Math.min(circleCenterY, rectTop));
+            const dx = closestX - circleCenterX;
+            const dy = closestY - circleCenterY;
+            return (dx * dx + dy * dy) < radius * radius;
+        }
+        
+        // 更新每一帧逻辑 (移动小球、碰撞检测、漏掉判定)
+        function updateGame(dt) {
+            if (gameOverFlag) return;
+            if (!player) return;
+            
+            // 限速dt最大值，防止瞬移过大
+            const delta = Math.min(dt, 0.033);
+            
+            // 获取玩家位置和碰撞矩形 (玩家锚点中心)
+            const playerPos = player.getPosition();
+            const playerLeft = playerPos.x - PLAYER_WIDTH / 2;
+            const playerRight = playerPos.x + PLAYER_WIDTH / 2;
+            const playerBottom = playerPos.y - PLAYER_HEIGHT / 2;
+            const playerTop = playerPos.y + PLAYER_HEIGHT / 2;
+            
+            // 遍历所有小球 (倒序遍历以便删除)
+            for (let i = ballsArray.length - 1; i >= 0; i--) {
+                const ball = ballsArray[i];
+                if (!ball || !ball.parent) {
+                    ballsArray.splice(i,1);
+                    continue;
+                }
+                const ballPos = ball.getPosition();
+                const radius = ball.userData.radius || BALL_RADIUS;
+                // 更新位置
+                let newY = ballPos.y + (ball.userData.velocityY * delta);
+                ball.setPosition(ballPos.x, newY);
+                ballPos.y = newY;
+                
+                // 碰撞检测 (玩家与球)
+                const isCollide = collideRectCircle(playerLeft, playerBottom, playerRight, playerTop,
+                                                    ballPos.x, ballPos.y, radius);
+                if (isCollide) {
+                    // 接到球: 加分, 移除球
+                    score += 10;
+                    updateUI();
+                    // 移除小球
+                    ball.removeFromParent();
+                    ballsArray.splice(i,1);
+                    
+                    // 动态调整生成速度 (分数变化影响节奏)
+                    if (!gameOverFlag && spawnScheduleId) {
+                        // 刷新一次调度器更新生成频率
+                        gameLayer.unschedule(spawnScheduleId);
+                        let newInt = BASE_SPAWN_INTERVAL - Math.floor(score / 300) * 0.07;
+                        newInt = Math.max(MIN_SPAWN_INTERVAL, newInt);
+                        spawnScheduleId = gameLayer.schedule(function() {
+                            spawnBall();
+                        }, newInt);
+                    }
+                    continue;
+                }
+                
+                // 漏掉判定: 小球超出底部 (Y坐标 - 半径 <= 0)
+                if (ballPos.y - radius <= 0) {
+                    ball.removeFromParent();
+                    ballsArray.splice(i,1);
+                    lives--;
+                    updateUI();
+                    
+                    // 震动特效 (轻微屏幕震动, 可选)
+                    if (lives <= 0) {
+                        endGame();
+                    } else {
+                        // 生命减少时的简单反馈: 玩家闪烁一下
+                        if (player) {
+                            player.runAction(cc.sequence(
+                                cc.fadeTo(0.05, 120),
+                                cc.fadeTo(0.05, 255)
+                            ));
+                        }
+                    }
+                    continue;
+                }
+            }
+            
+            // 额外安全: 如果生命归零但还未触发endGame时再触发一次
+            if (lives <= 0 && !gameOverFlag) {
+                endGame();
+            }
+        }
+        
+        // 玩家移动控制 (键盘 + 鼠标/触摸)
+        function initPlayerControls(layer) {
+            // 键盘控制: 左右箭头
+            const keyboardListener = cc.EventListener.create({
+                event: cc.EventListener.KEYBOARD,
+                onKeyPressed: function(keyCode, event) {
+                    if (gameOverFlag) return;
+                    if (!player) return;
+                    let newX = player.getPositionX();
+                    const step = 32;
+                    if (keyCode === cc.KEY.left || keyCode === 37) {
+                        newX -= step;
+                    } else if (keyCode === cc.KEY.right || keyCode === 39) {
+                        newX += step;
+                    }
+                    // 边界限制 (考虑玩家半宽)
+                    const minX = PLAYER_WIDTH / 2;
+                    const maxX = DESIGN_WIDTH - PLAYER_WIDTH / 2;
+                    newX = Math.min(maxX, Math.max(minX, newX));
+                    player.setPositionX(newX);
+                }
+            });
+            cc.eventManager.addListener(keyboardListener, layer);
+            
+            // 鼠标移动控制 (PC)
+            const mouseListener = cc.EventListener.create({
+                event: cc.EventListener.MOUSE,
+                onMouseMove: function(event) {
+                    if (gameOverFlag) return;
+                    if (!player) return;
+                    // 将鼠标坐标转换为Cocos世界坐标 (基于设计分辨率)
+                    let location = event.getLocation();
+                    let designPos = cc.director.convertToUI(location);
+                    // 因为canvas可能缩放, 需要反向映射到设计分辨率坐标
+                    // 更稳健的方法: 获取GLView并转换坐标
+                    const glView = cc.director.getOpenGLView();
+                    const viewport = glView.getViewPortRect();
+                    const canvasSize = cc.view.getCanvasSize();
+                    const scaleX = DESIGN_WIDTH / canvasSize.width;
+                    const scaleY = DESIGN_HEIGHT / canvasSize.height;
+                    let gameX = location.x * scaleX;
+                    let gameY = location.y * scaleY;
+                    // 确保坐标在有效范围内
+                    if (!isNaN(gameX) && gameX >= 0 && gameX <= DESIGN_WIDTH) {
+                        let newX = Math.min(DESIGN_WIDTH - PLAYER_WIDTH / 2, Math.max(PLAYER_WIDTH / 2, gameX));
+                        player.setPositionX(newX);
+                    }
+                },
+                onMouseDrag: function(event) {
+                    if (gameOverFlag) return;
+                    if (!player) return;
+                    let location = event.getLocation();
+                    const glView = cc.director.getOpenGLView();
+                    const canvasSize = cc.view.getCanvasSize();
+                    const scaleX = DESIGN_WIDTH / canvasSize.width;
+                    let gameX = location.x * scaleX;
+                    if (!isNaN(gameX) && gameX >= 0 && gameX <= DESIGN_WIDTH) {
+                        let newX = Math.min(DESIGN_WIDTH - PLAYER_WIDTH / 2, Math.max(PLAYER_WIDTH / 2, gameX));
+                        player.setPositionX(newX);
+                    }
+                }
+            });
+            cc.eventManager.addListener(mouseListener, layer);
+            
+            // 触摸控制 (移动端核心)
+            const touchListener = cc.EventListener.create({
+                event: cc.EventListener.TOUCH_ONE_BY_ONE,
+                onTouchMove: function(touch, event) {
+                    if (gameOverFlag) return;
+                    if (!player) return;
+                    let location = touch.getLocation();
+                    const glView = cc.director.getOpenGLView();
+                    const canvasSize = cc.view.getCanvasSize();
+                    const scaleX = DESIGN_WIDTH / canvasSize.width;
+                    let gameX = location.x * scaleX;
+                    if (!isNaN(gameX) && gameX >= 0 && gameX <= DESIGN_WIDTH) {
+                        let newX = Math.min(DESIGN_WIDTH - PLAYER_WIDTH / 2, Math.max(PLAYER_WIDTH / 2, gameX));
+                        player.setPositionX(newX);
+                        return true;
+                    }
+                    return true;
+                },
+                onTouchEnd: function(touch, event) {
+                    // 游戏结束状态下，任何触摸点击可重置游戏
+                    if (gameOverFlag) {
+                        resetGame();
+                        return true;
+                    }
+                    return true;
+                }
+            });
+            cc.eventManager.addListener(touchListener, layer);
+            
+            // 增加重置游戏的快捷键 R 键 (键盘重置)
+            const resetListener = cc.EventListener.create({
+                event: cc.EventListener.KEYBOARD,
+                onKeyPressed: function(keyCode, event) {
+                    if (keyCode === cc.KEY.r || keyCode === 114) {
+                        if (gameOverFlag) {
+                            resetGame();
+                        } else {
+                            // 非结束状态想要自愿重置？也能重置，但不影响体验，给玩家一个重置方式
+                            resetGame();
+                        }
+                    }
+                }
+            });
+            cc.eventManager.addListener(resetListener, layer);
+        }
+        
+        // 创建游戏主层
+        let GameLayer = cc.Layer.extend({
+            ctor: function() {
+                this._super();
+                gameLayer = this; // 全局引用方便
+                this.init();
+            },
+            init: function() {
+                this._super();
+                // 背景设置 (深色渐变感)
+                const bgLayer = new cc.LayerGradient(cc.color(20, 30, 52), cc.color(10, 12, 38));
+                bgLayer.setPosition(0,0);
+                this.addChild(bgLayer, -10);
+                
+                // 装饰网格线(可选)
+                const gridNode = new cc.DrawNode();
+                for (let i = 0; i < DESIGN_WIDTH; i += 50) {
+                    gridNode.drawSegment(cc.p(i, 0), cc.p(i, DESIGN_HEIGHT), 1, cc.color(70, 90, 150, 80));
+                }
+                for (let j = 0; j < DESIGN_HEIGHT; j += 80) {
+                    gridNode.drawSegment(cc.p(0, j), cc.p(DESIGN_WIDTH, j), 1, cc.color(70, 90, 150, 80));
+                }
+                this.addChild(gridNode, -5);
+                
+                // 创建玩家
+                player = createPlayer();
+                player.setPosition(DESIGN_WIDTH / 2, 70);
+                this.addChild(player, 20);
+                
+                // 创建UI 标签 (分数 & 生命)
+                scoreLabel = new cc.LabelTTF(`得分: 0`, "Arial", 28);
+                scoreLabel.setColor(cc.color(255, 245, 200));
+                scoreLabel.setPosition(70, DESIGN_HEIGHT - 45);
+                scoreLabel.setAnchorPoint(0, 0.5);
+                this.addChild(scoreLabel, 50);
+                
+                livesLabel = new cc.LabelTTF(`生命: ❤️❤️❤️`, "Arial", 26);
+                livesLabel.setColor(cc.color(255, 180, 180));
+                livesLabel.setPosition(DESIGN_WIDTH - 110, DESIGN_HEIGHT - 45);
+                livesLabel.setAnchorPoint(0, 0.5);
+                this.addChild(livesLabel, 50);
+                
+                // 动态添加装饰粒子 (简单彩尘效果, 可选, 增加趣味)
+                const particle = new cc.ParticleSystem();
+                particle.initWithTotalParticles(50);
+                particle.setTexture(cc.textureCache.addImage("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyhpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuNi1jMTQwIDc5LjE2MDQ1MSwgMjAxNy8wNS8wNi0wMTowODoyMSAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENDIDIwMTggKE1hY2ludG9zaCkiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6QTc1RjU2RjM1QzQxMTFFQUI4RThGQzkyRkIyNzQzNzUiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6QTc1RjU2RjQ1QzQxMTFFQUI4RThGQzkyRkIyNzQzNzUiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDpBNzVGNjU5RDVjNjExMUVBQjhFOEZDOTJGQjI3NDM3NSIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDpBNzVGNjVCRTVjNjExMUVBQjhFOEZDOUNGOTI3NDM3NSIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pu1iSXoAAAAfSURBVHjaYvz//z8DJYYyBpQBMQ6KGUExDv4PMAAA//8DAAEAAv//2DzIAAAAAElFTkSuQmCC"));
+                particle.setPosition(DESIGN_WIDTH/2, DESIGN_HEIGHT-50);
+                particle.setLife(1.5);
+                particle.setLifeVar(0.8);
+                particle.setStartSize(6);
+                particle.setStartSizeVar(3);
+                particle.setEndSize(0);
+                particle.setStartColor(cc.color(255,200,100,255));
+                particle.setStartColorVar(cc.color(80,80,80,50));
+                particle.setEndColor(cc.color(255,100,150,0));
+                particle.setSpeed(40);
+                particle.setSpeedVar(20);
+                particle.setGravity(cc.p(0, -30));
+                particle.setEmissionRate(15);
+                this.addChild(particle, 30);
+                
+                // 初始化UI数值
+                updateUI();
+                
+                // 启动生成小球 (调度)
+                scheduleSpawn();
+                
+                // 启动帧更新
+                this.scheduleUpdate();
+                
+                // 初始化控制
+                initPlayerControls(this);
+                
+                return true;
+            },
+            update: function(dt) {
+                updateGame(dt);
+            },
+            onExit: function() {
+                // 清理所有事件监听 (避免全局残留)
+                cc.eventManager.removeAllListeners();
+                if (spawnScheduleId) {
+                    this.unschedule(spawnScheduleId);
+                    spawnScheduleId = null;
+                }
+                this._super();
+            }
+        });
+        
+        // 启动游戏引擎
+        cc.game.onStart = function() {
+            // 视图适配设置
+            cc.view.setDesignResolutionSize(DESIGN_WIDTH, DESIGN_HEIGHT, cc.ResolutionPolicy.SHOW_ALL);
+            cc.view.setResizeCallback(function() {
+                // 保持设计分辨率适配
+            });
+            // 启动场景
+            let scene = new cc.Scene();
+            let mainLayer = new GameLayer();
+            scene.addChild(mainLayer);
+            cc.director.runScene(scene);
+        };
+        
+        cc.game.run();
+    })();
+</script>
+</body>
+</html>

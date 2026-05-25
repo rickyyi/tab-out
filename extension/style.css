@@ -1067,6 +1067,42 @@ header {
   padding: 6px 4px;
 }
 
+/* ---- Hot Search Chip ---- */
+.hot-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.hot-chip:hover {
+  background: rgba(200, 113, 58, 0.06);
+}
+
+.hot-rank {
+  font-family: 'Newsreader', serif;
+  font-size: 13px;
+  font-weight: 500;
+  min-width: 20px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.hot-chip:nth-child(-n+3) .hot-rank {
+  color: #c8713a;
+  font-weight: 700;
+}
+
+.hot-heat {
+  font-size: 11px;
+  color: var(--muted);
+  margin-left: auto;
+  white-space: nowrap;
+}
+
 /* mission-meta hidden — see above */
 
 .mission-time {

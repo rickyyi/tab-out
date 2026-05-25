@@ -1552,7 +1552,9 @@ async function renderStaticDashboard() {
   if (domainGroups.length > 0 && openTabsSection) {
     if (openTabsSectionTitle) openTabsSectionTitle.textContent = 'Open tabs';
     openTabsSectionCount.innerHTML = `${domainGroups.length} domain${domainGroups.length !== 1 ? 's' : ''} &nbsp;&middot;&nbsp; <button class="action-btn close-tabs" data-action="close-all-open-tabs" style="font-size:11px;padding:3px 10px;">${ICONS.close} Close all ${realTabs.length} tabs</button>`;
-    openTabsMissionsEl.innerHTML = domainGroups.map(g => renderDomainCard(g)).join('');
+    const hotItems = await fetchHotSearch();
+    const hotSearchHtml = hotItems.length > 0 ? renderHotSearchCard(hotItems) : '';
+    openTabsMissionsEl.innerHTML = hotSearchHtml + domainGroups.map(g => renderDomainCard(g)).join('');
     openTabsSection.style.display = 'block';
   } else if (openTabsSection) {
     openTabsSection.style.display = 'none';
@@ -1672,6 +1674,157 @@ function renderBookmarkCard(folder) {
 
 
 /* ----------------------------------------------------------------
+   BAIDU HOT SEARCH
+   ---------------------------------------------------------------- */
+
+let hotSearchCache = null;
+let hotSearchFetching = false;
+let hotSearchTimer = null;
+
+async function fetchHotSearch(noCache = false) {
+  if (!noCache && hotSearchCache) return hotSearchCache;
+  if (hotSearchFetching) return hotSearchCache || [];
+
+  hotSearchFetching = true;
+  try {
+    const resp = await fetch('https://top.baidu.com/board?tab=realtime');
+    const html = await resp.text();
+
+    // Try to extract JSON from <!--s-data:...--> comment
+    const sDataMatch = html.match(/<!--s-data:({.*?})-->/);
+    if (sDataMatch) {
+      const data = JSON.parse(sDataMatch[1]);
+      const items = data?.data?.cards?.[0]?.content || data?.data?.cards || [];
+      if (items.length > 0) {
+        const result = items.map((item, i) => ({
+          rank: i + 1,
+          title: item.title || item.query || item.word || '',
+          heat: item.hotScore || item.heat || item.hot || '',
+        })).filter(item => item.title).slice(0, 30);
+        if (result.length > 0) {
+          hotSearchCache = result;
+          return result;
+        }
+      }
+    }
+
+    // Fallback: parse from script tag with window.__INITIAL_STATE__
+    const initMatch = html.match(/window\.__INITIAL_STATE__\s*=\s*({.*?});/s);
+    if (initMatch) {
+      const data = JSON.parse(initMatch[1]);
+      const cards = data?.seoResult?.cards || data?.cards || [];
+      const items = cards[0]?.content || cards[0]?.list || [];
+      const result = items.map((item, i) => ({
+        rank: i + 1,
+        title: item.title || item.word || item.query || '',
+        heat: item.hotScore || item.heatScore || item.heat || '',
+      })).filter(item => item.title).slice(0, 30);
+      if (result.length > 0) { hotSearchCache = result; return result; }
+    }
+
+    // Fallback: parse from script tag with window.data
+    const scriptMatch = html.match(/window\.data\s*=\s*({.*?});/s);
+    if (scriptMatch) {
+      const data = JSON.parse(scriptMatch[1]);
+      const cards = data?.cards || [];
+      const result = cards.flatMap(card =>
+        (card.content || []).map((item, i) => ({
+          rank: i + 1,
+          title: item.title || item.query || '',
+          heat: item.hotScore || item.heat || '',
+        }))
+      ).filter(item => item.title).slice(0, 30);
+      if (result.length > 0) { hotSearchCache = result; return result; }
+    }
+
+    // Last resort: parse raw HTML for hot search items
+    const titleMatches = html.matchAll(/class="title[^"]*"[^>]*>([^<]+)</g);
+    const heatMatches = html.matchAll(/class="hot[^"]*"[^>]*>([^<]+)</g);
+    const results = [];
+    let idx = 0;
+    for (const m of titleMatches) {
+      results.push({
+        rank: idx + 1,
+        title: m[1].trim(),
+        heat: '',
+      });
+      idx++;
+    }
+    if (results.length > 0) {
+      // Try to fill in heat numbers
+      let hidx = 0;
+      for (const h of heatMatches) {
+        if (results[hidx]) results[hidx].heat = h[1].trim();
+        hidx++;
+      }
+      hotSearchCache = results;
+      return results;
+    }
+  } catch (err) {
+    console.warn('[tab-out] Hot search fetch failed:', err);
+  } finally {
+    hotSearchFetching = false;
+  }
+
+  // Fallback: return empty so card shows nothing
+  return [];
+}
+
+async function updateHotSearchCard() {
+  const items = await fetchHotSearch(true);
+  if (items.length === 0) return;
+  const card = document.querySelector('#openTabsMissions .mission-card .mission-name');
+  if (!card || !card.textContent.includes('Baidu hot')) return;
+  const cardEl = card.closest('.mission-card');
+  if (!cardEl) return;
+  cardEl.outerHTML = renderHotSearchCard(items);
+}
+
+function startHotSearchRefresh() {
+  // Refresh every 10 minutes
+  hotSearchTimer = setInterval(updateHotSearchCard, 10 * 60 * 1000);
+}
+
+function formatHeat(val) {
+  if (!val) return '';
+  const n = typeof val === 'string' ? parseFloat(val.replace(/[^0-9.]/g, '')) : val;
+  if (isNaN(n)) return String(val);
+  if (n >= 10000) return (n / 10000).toFixed(n >= 100000 ? 0 : 1) + '万';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+function renderHotSearchCard(items) {
+  const chips = items.map(item => {
+    const safeTitle = item.title.replace(/"/g, '&quot;');
+    const heat = formatHeat(item.heat);
+    return `
+    <div class="page-chip hot-chip" data-action="search-hot" data-query="${safeTitle}">
+      <span class="hot-rank">${item.rank}</span>
+      <span class="chip-text">${safeTitle}</span>
+      ${heat ? `<span class="hot-heat">${heat}</span>` : ''}
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="mission-card domain-card has-neutral-bar">
+      <div class="status-bar"></div>
+      <div class="mission-content">
+        <div class="mission-top">
+          <span class="mission-name">🔥 Baidu hot</span>
+          <span class="open-tabs-badge">breaking news</span>
+        </div>
+        <div class="mission-pages">${chips}</div>
+      </div>
+      <div class="mission-meta">
+        <div class="mission-page-count">${items.length}</div>
+        <div class="mission-page-label">hot</div>
+      </div>
+    </div>`;
+}
+
+
+/* ----------------------------------------------------------------
    EVENT HANDLERS — using event delegation
 
    One listener on document handles ALL button clicks.
@@ -1723,6 +1876,16 @@ document.addEventListener('click', async (e) => {
   if (action === 'open-bookmark') {
     const bmUrl = actionEl.dataset.bmUrl;
     if (bmUrl) window.open(bmUrl, '_blank');
+    return;
+  }
+
+  // ---- Search hot topic with current search engine ----
+  if (action === 'search-hot') {
+    const query = actionEl.dataset.query;
+    if (!query) return;
+    const engine = SEARCH_ENGINES[currentEngine];
+    const searchUrl = engine.url.includes('%s') ? engine.url.replace('%s', encodeURIComponent(query)) : engine.url + encodeURIComponent(query);
+    window.open(searchUrl, '_blank');
     return;
   }
 
@@ -2512,4 +2675,5 @@ document.getElementById('viewToggle')?.addEventListener('click', (e) => {
 
 renderDashboard().then(() => {
   document.getElementById('openTabsSection')?.classList.add('animate');
+  startHotSearchRefresh();
 });
