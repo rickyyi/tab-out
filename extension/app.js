@@ -2282,7 +2282,8 @@ if (animContainer && typeof lottie !== 'undefined') {
 const mascotEl = document.getElementById('mascot');
 if (mascotEl) {
   // Manual click
-  mascotEl.addEventListener('click', () => {
+  mascotEl.addEventListener('click', (e) => {
+    e.stopPropagation();
     triggerMascotBubble();
     // Play a bounce on the lottie container
     if (animContainer) {

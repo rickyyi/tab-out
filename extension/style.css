@@ -4,12 +4,12 @@
 
 .mascot {
   position: absolute;
-  bottom: calc(100% + 4px);
+  bottom: 100%;
   right: 0;
   z-index: 200;
   cursor: pointer;
   width: 45px;
-  height: 45px;
+  height: 32px;
   opacity: 0;
   animation: mascot-appear 0.5s ease forwards, mascot-walk 18s linear infinite;
 }
