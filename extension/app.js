@@ -2279,6 +2279,23 @@ if (animContainer && typeof lottie !== 'undefined') {
   });
 }
 
+/* ---- Dynamic walk distance: measure health badge width ---- */
+function updateMascotWalkDistance() {
+  const badge = document.getElementById('healthBadge');
+  const mascot = document.getElementById('mascot');
+  if (!badge || !mascot) return;
+  const distance = Math.max(60, badge.clientWidth - 45);
+  mascot.style.setProperty('--walk-distance', `-${distance}px`);
+}
+
+// Measure on load and whenever badge resizes (e.g. tip text changes)
+const healthBadge = document.getElementById('healthBadge');
+if (healthBadge) {
+  updateMascotWalkDistance();
+  const ro = new ResizeObserver(updateMascotWalkDistance);
+  ro.observe(healthBadge);
+}
+
 const mascotEl = document.getElementById('mascot');
 if (mascotEl) {
   // Manual click

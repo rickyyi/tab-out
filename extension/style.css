@@ -16,8 +16,8 @@
 
 @keyframes mascot-walk {
   0%   { transform: translateX(0) scaleX(-1); }
-  25%  { transform: translateX(-120px) scaleX(-1); }
-  50%  { transform: translateX(-120px) scaleX(1); }
+  25%  { transform: translateX(var(--walk-distance, -120px)) scaleX(-1); }
+  50%  { transform: translateX(var(--walk-distance, -120px)) scaleX(1); }
   75%  { transform: translateX(0) scaleX(1); }
   100% { transform: translateX(0) scaleX(-1); }
 }
